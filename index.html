@@ -1099,7 +1099,7 @@
 
     console.log('json model ...');
     console.time('loading');
-    const mobileNet = await tf.loadFrozenModelJSON(MODEL_URL);
+    const mobileNet = await tf.loadFrozenModel(MODEL_URL);
     console.timeEnd('loading');
     const profile = await tf.profile(() => {
       console.time('First prediction');

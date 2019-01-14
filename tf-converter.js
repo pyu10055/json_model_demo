@@ -9154,8 +9154,6 @@
         return OperationMapper;
     }());
 
-    var TFHUB_SEARCH_PARAM$1 = '?tfjs-format=file';
-    var DEFAULT_MODEL_NAME$1 = 'model.json';
     var FrozenModel$1 = (function () {
         function FrozenModel(modelUrl, requestOption, weightPrefix) {
             this.modelUrl = modelUrl;
@@ -9333,25 +9331,20 @@
             });
         });
     }
-    function loadTfHubModule$1(tfhubModuleUrl, requestOption) {
-        return __awaiter(this, void 0, void 0, function () {
-            return __generator(this, function (_a) {
-                if (!tfhubModuleUrl.endsWith('/')) {
-                    tfhubModuleUrl = tfhubModuleUrl + '/';
-                }
-                return [2, loadFrozenModel$1("" + tfhubModuleUrl + DEFAULT_MODEL_NAME$1 + TFHUB_SEARCH_PARAM$1, requestOption)];
-            });
-        });
+
+    var version = '0.7.2';
+
+    function loadFrozenModel$2(modelUrl, weightsManifestUrl, requestOption) {
+        if (modelUrl && modelUrl.endsWith('.json')) {
+            return loadFrozenModel$1(modelUrl, requestOption);
+        }
+        return loadFrozenModel(modelUrl, weightsManifestUrl, requestOption);
     }
 
-    var version = '0.7.1';
-
+    exports.loadFrozenModel = loadFrozenModel$2;
     exports.FrozenModel = FrozenModel;
-    exports.loadFrozenModel = loadFrozenModel;
     exports.loadTfHubModule = loadTfHubModule;
     exports.FrozenModelJSON = FrozenModel$1;
-    exports.loadFrozenModelJSON = loadFrozenModel$1;
-    exports.loadTfHubModuleJSON = loadTfHubModule$1;
     exports.version_converter = version;
 
     Object.defineProperty(exports, '__esModule', { value: true });

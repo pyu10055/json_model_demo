@@ -1,0 +1,125 @@
+<!doctype html>
+<html>
+
+<body>
+  <h1>TensorFlow.js converter: ssdlite_mobilenet_v2_coco_2018_05_09</h1>
+  <button type="button" id="run">Run</button>
+  <button type="button" id="toggle">Toggle Image</button>
+  <div>
+    <img id="image"></img>
+    <canvas id="canvas" width="600" height="399"></canvas>
+  </div>
+</body>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@0.13.5"></script>
+<script src="tf-converter.js"></script>
+<script>
+  calMaxScores = function (scores) {
+    maxes = [];
+    classes = [];
+    for (let i = 0; i < 1917; i++) {
+      let max = Number.MIN_VALUE;
+      let index = -1;
+      for (let j = 0; j < 90; j++) {
+        if (scores[i * 90 + j] > max) {
+          max = scores[i * 90 + j];
+          index = j;
+        }
+
+      }
+      maxes[i] = max;
+      classes[i] = index;
+    }
+    return [maxes, classes];
+  }
+  const GOOGLE_CLOUD_STORAGE_DIR =
+    './';
+  const MODEL_URL =
+    GOOGLE_CLOUD_STORAGE_DIR + 'ssdlite_mobilenet_v2_coco_2018_05_09/web_model/tensorflowjs_model.pb';
+  const WEIGHTS_URL =
+    GOOGLE_CLOUD_STORAGE_DIR + 'ssdlite_mobilenet_v2_coco_2018_05_09/web_model/weights_manifest.json';
+
+  let modelPromise;
+
+  window.onload = () => modelPromise =
+    tf.loadFrozenModel(MODEL_URL, WEIGHTS_URL); //, undefined, [new tf.DeviceAllocationOptimizer('webgl', true)]);
+
+  const button = document.getElementById('toggle');
+  button.onclick = () => {
+    image.src = image.src.endsWith('image1.jpg') ? 'image2.jpg' : 'image1.jpg';
+  };
+
+  const image = document.getElementById('image');
+  image.src = 'image2.jpg';
+
+  const runButton = document.getElementById('run');
+  runButton.onclick = async () => {
+    const model = await modelPromise;
+    console.log(model.outputs);
+    const pixels = tf.fromPixels(image);
+    console.log('model loaded');
+    console.time('predict1');
+    const res1 = await model.executeAsync(pixels.reshape([1, ...pixels.shape]));
+    res1.map(t => t.dataSync());
+    console.timeEnd('predict1');
+
+    for (let i = 0; i < 10; i++) {
+      console.time('npredict' + i);
+      const [s, b] = await model.executeAsync(pixels.reshape([1, ...pixels.shape]));
+      s.dataSync();
+      b.dataSync();
+      console.timeEnd('npredict' + i);
+    }
+
+    console.time('predict2');
+    const res2 = await model.executeAsync(pixels.reshape([1, ...pixels.shape]));
+    //const count = res2[3].dataSync()[0];
+    //const boxes = res2[0].dataSync();
+    const scores = res2[1].dataSync();
+    const boxes = res2[2].dataSync();
+
+    const [maxScores, classes] = calMaxScores(scores);
+    tf.setBackend('cpu');
+    const boxes2 = tf.tensor2d(boxes, [1917, 4]);
+    const indexes = tf.image.nonMaxSuppression(boxes2, maxScores, 20, 0.5, 0.5).dataSync();
+    tf.setBackend('webgl');
+    const boxes3 = [];
+    const scores3 = [];
+    const classes3 = [];
+    const count = indexes.length;
+    for (let i = 0; i < count; i++) {
+      for (let j = 0; j < 4; j++) {
+        boxes3[i * 4 + j] = boxes[indexes[i] * 4 + j];
+      }
+      scores3[i] = maxScores[indexes[i]];
+      classes3[i] = classes[indexes[i]];
+    }
+    console.timeEnd('predict2');
+
+    console.log(classes3);
+
+    const c = document.getElementById('canvas');
+    const context = c.getContext('2d');
+    context.drawImage(image, 0, 0);
+    context.font = '10px Arial';
+
+    console.log('number of detections: ', count);
+    for (let i = 0; i < count; i++) {
+      const min_y = boxes3[i * 4] * 399;
+      const min_x = boxes3[i * 4 + 1] * 600;
+      const max_y = boxes3[i * 4 + 2] * 399;
+      const max_x = boxes3[i * 4 + 3] * 600;
+
+      context.beginPath();
+      context.rect(min_x, min_y, max_x - min_x, max_y - min_y);
+      context.lineWidth = 1;
+      context.strokeStyle = 'black';
+      context.stroke();
+      context.fillText(
+        scores3[i].toFixed(3) + ' ' + (classes3[i] === 0 ? 'person' : 'kite'),
+        min_x, min_y - 5);
+    }
+  };
+</script>
+
+</html>

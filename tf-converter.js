@@ -4397,26 +4397,24 @@
     var compiled_api_1 = compiled_api.tensorflow;
 
     function getParamValue(paramName, node, tensorMap, context) {
-        var inputParam = node.inputParams[paramName];
-        if (inputParam && inputParam.inputIndexStart !== undefined) {
-            var start = inputParam.inputIndexStart;
-            var end = inputParam.inputIndexEnd === 0 ?
-                undefined :
-                (inputParam.inputIndexEnd === undefined ? start + 1 :
-                    inputParam.inputIndexEnd);
-            if (inputParam.type === 'tensor') {
-                return getTensor(node.inputNames[inputParam.inputIndexStart], tensorMap, context);
+        var param = node.params[paramName];
+        if (param && param.inputIndex !== undefined) {
+            if (param.type === 'tensor') {
+                return getTensor(node.inputNames[param.inputIndex], tensorMap, context);
             }
-            if (inputParam.type === 'tensors') {
-                var inputs = node.inputNames.slice(start, end);
+            if (param.type === 'tensors') {
+                var inputs = param.inputIndex === 0 ?
+                    (param.inputParamLength === 0 ?
+                        node.inputNames :
+                        node.inputNames.slice(param.inputIndex, -param.inputParamLength)) :
+                    node.inputNames.splice(param.inputIndex);
                 return inputs.map(function (name) { return getTensor(name, tensorMap, context); });
             }
-            var data = Array.prototype.slice.call(getTensor(node.inputNames.slice(start)[0], tensorMap, context)
+            var data = Array.prototype.slice.call(getTensor(node.inputNames.slice(param.inputIndex)[0], tensorMap, context)
                 .dataSync());
-            return inputParam.type === 'number' ? data[0] : data;
+            return param.type === 'number' ? data[0] : data;
         }
-        var attrParam = node.attrParams[paramName];
-        return attrParam && attrParam.value;
+        return param && param.value;
     }
     function getTensor(name, tensorsMap, context) {
         var _a = parseNodeName(name), nodeName = _a[0], index = _a[1];
@@ -4458,148 +4456,186 @@
     var json = [
         {
             'tfOpName': 'Add',
+            'dlOpName': 'add',
             'category': 'arithmetic',
-            'inputs': [
-                { 'start': 0, 'name': 'a', 'type': 'tensor' },
-                { 'start': 1, 'name': 'b', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'AddN',
+            'dlOpName': 'addN',
             'category': 'arithmetic',
-            'inputs': [{ 'start': 0, 'end': 0, 'name': 'tensors', 'type': 'tensors' }]
+            'params': [{
+                    'tfInputIndex': 0,
+                    'tfInputParamLength': 0,
+                    'dlParamName': 'tensors',
+                    'type': 'tensors'
+                }]
         },
         {
             'tfOpName': 'BiasAdd',
+            'dlOpName': 'add',
             'category': 'arithmetic',
-            'inputs': [
-                { 'start': 0, 'name': 'a', 'type': 'tensor' },
-                { 'start': 1, 'name': 'b', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'Sub',
+            'dlOpName': 'sub',
             'category': 'arithmetic',
-            'inputs': [
-                { 'start': 0, 'name': 'a', 'type': 'tensor' },
-                { 'start': 1, 'name': 'b', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'RealDiv',
+            'dlOpName': 'div',
             'category': 'arithmetic',
-            'inputs': [
-                { 'start': 0, 'name': 'a', 'type': 'tensor' },
-                { 'start': 1, 'name': 'b', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'Div',
+            'dlOpName': 'div',
             'category': 'arithmetic',
-            'inputs': [
-                { 'start': 0, 'name': 'a', 'type': 'tensor' },
-                { 'start': 1, 'name': 'b', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'FloorDiv',
+            'dlOpName': 'floorDiv',
             'category': 'arithmetic',
-            'inputs': [
-                { 'start': 0, 'name': 'a', 'type': 'tensor' },
-                { 'start': 1, 'name': 'b', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'Mul',
+            'dlOpName': 'mul',
             'category': 'arithmetic',
-            'inputs': [
-                { 'start': 0, 'name': 'a', 'type': 'tensor' },
-                { 'start': 1, 'name': 'b', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'Maximum',
+            'dlOpName': 'maximum',
             'category': 'arithmetic',
-            'inputs': [
-                { 'start': 0, 'name': 'a', 'type': 'tensor' },
-                { 'start': 1, 'name': 'b', 'type': 'tensor' }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }
             ]
         },
         {
             'tfOpName': 'Minimum',
+            'dlOpName': 'minimum',
             'category': 'arithmetic',
-            'inputs': [
-                { 'start': 0, 'name': 'a', 'type': 'tensor' },
-                { 'start': 1, 'name': 'b', 'type': 'tensor' }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }
             ]
         },
         {
             'tfOpName': 'Pow',
+            'dlOpName': 'pow',
             'category': 'arithmetic',
-            'inputs': [
-                { 'start': 0, 'name': 'a', 'type': 'tensor' },
-                { 'start': 1, 'name': 'b', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'SquaredDifference',
+            'dlOpName': 'squaredDifference',
             'category': 'arithmetic',
-            'inputs': [
-                { 'start': 0, 'name': 'a', 'type': 'tensor' },
-                { 'start': 1, 'name': 'b', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'Mod',
+            'dlOpName': 'mod',
             'category': 'arithmetic',
-            'inputs': [
-                { 'start': 0, 'name': 'a', 'type': 'tensor' },
-                { 'start': 1, 'name': 'b', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'FloorMod',
+            'dlOpName': 'mod',
             'category': 'arithmetic',
-            'inputs': [
-                { 'start': 0, 'name': 'a', 'type': 'tensor' },
-                { 'start': 1, 'name': 'b', 'type': 'tensor' },
-            ],
-            'attrs': [{
-                    'tfName': 'T',
-                    'name': 'dtype',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
                     'type': 'dtype',
                     'notSupported': true
-                }]
+                }
+            ]
         }
     ];
 
@@ -4610,400 +4646,513 @@
     var json$1 = [
         {
             'tfOpName': 'Abs',
+            'dlOpName': 'abs',
             'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
-            ]
-        },
-        {
-            'tfOpName': 'Acos',
-            'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
-            ]
-        },
-        {
-            'tfOpName': 'Asin',
-            'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
-            ]
-        },
-        {
-            'tfOpName': 'Atan',
-            'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
-            ]
-        },
-        {
-            'tfOpName': 'Atan2',
-            'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'y', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
-            ]
-        },
-        {
-            'tfOpName': 'Ceil',
-            'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
-            ]
-        },
-        {
-            'tfOpName': 'ClipByValue',
-            'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'clip_value_min', 'name': 'clipValueMin', 'type': 'number' },
-                { 'tfName': 'clip_value_max', 'name': 'clipValueMax', 'type': 'number' }
-            ]
-        },
-        {
-            'tfOpName': 'Cos',
-            'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
-            ]
-        },
-        {
-            'tfOpName': 'Cosh',
-            'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
-            ]
-        },
-        {
-            'tfOpName': 'Elu',
-            'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
-            ]
-        },
-        {
-            'tfOpName': 'Exp',
-            'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
-            ]
-        },
-        {
-            'tfOpName': 'Floor',
-            'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
-            ]
-        },
-        {
-            'tfOpName': 'Log',
-            'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
-            ]
-        },
-        {
-            'tfOpName': 'Neg',
-            'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
-            ]
-        },
-        {
-            'tfOpName': 'Relu',
-            'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
-            ]
-        },
-        {
-            'tfOpName': 'Relu6',
-            'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }, {
-                    'tfName': 'clipValueMin',
-                    'name': 'clipValueMin',
-                    'type': 'number',
-                    'defaultValue': 0
-                },
-                {
-                    'tfName': 'clipValueMax',
-                    'name': 'clipValueMax',
-                    'type': 'number',
-                    'defaultValue': 6
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
                 }
             ]
         },
         {
-            'tfOpName': 'Selu',
+            'tfOpName': 'Acos',
+            'dlOpName': 'acos',
             'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
+            ]
+        },
+        {
+            'tfOpName': 'Asin',
+            'dlOpName': 'asin',
+            'category': 'basic_math',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
+            ]
+        },
+        {
+            'tfOpName': 'Atan',
+            'dlOpName': 'atan',
+            'category': 'basic_math',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
+            ]
+        },
+        {
+            'tfOpName': 'Atan2',
+            'dlOpName': 'atan2',
+            'category': 'basic_math',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'y', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
+            ]
+        },
+        {
+            'tfOpName': 'Ceil',
+            'dlOpName': 'ceil',
+            'category': 'basic_math',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
+            ]
+        },
+        {
+            'tfOpName': 'ClipByValue',
+            'dlOpName': 'clipByValue',
+            'category': 'basic_math',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'clip_value_min',
+                    'dlParamName': 'clipValueMin',
+                    'type': 'number'
+                },
+                {
+                    'tfParamName': 'clip_value_max',
+                    'dlParamName': 'clipValueMax',
+                    'type': 'number'
+                }
+            ]
+        },
+        {
+            'tfOpName': 'Cos',
+            'dlOpName': 'cos',
+            'category': 'basic_math',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
+            ]
+        },
+        {
+            'tfOpName': 'Cosh',
+            'dlOpName': 'cosh',
+            'category': 'basic_math',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
+            ]
+        },
+        {
+            'tfOpName': 'Elu',
+            'dlOpName': 'elu',
+            'category': 'basic_math',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
+            ]
+        },
+        {
+            'tfOpName': 'Exp',
+            'dlOpName': 'exp',
+            'category': 'basic_math',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
+            ]
+        },
+        {
+            'tfOpName': 'Floor',
+            'dlOpName': 'floor',
+            'category': 'basic_math',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
+            ]
+        },
+        {
+            'tfOpName': 'Log',
+            'dlOpName': 'log',
+            'category': 'basic_math',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
+            ]
+        },
+        {
+            'tfOpName': 'Neg',
+            'dlOpName': 'neg',
+            'category': 'basic_math',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
+            ]
+        },
+        {
+            'tfOpName': 'Relu',
+            'dlOpName': 'relu',
+            'category': 'basic_math',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
+            ]
+        },
+        {
+            'tfOpName': 'Relu6',
+            'dlOpName': 'clipByValue',
+            'category': 'basic_math',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                },
+                { 'dlParamName': 'clipValueMin', 'type': 'number', 'defaultValue': 0 },
+                { 'dlParamName': 'clipValueMax', 'type': 'number', 'defaultValue': 6 }
+            ]
+        },
+        {
+            'tfOpName': 'Selu',
+            'dlOpName': 'selu',
+            'category': 'basic_math',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'Sigmoid',
+            'dlOpName': 'sigmoid',
             'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'Sin',
+            'dlOpName': 'sin',
             'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'Sinh',
+            'dlOpName': 'sinh',
             'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'Sqrt',
+            'dlOpName': 'sqrt',
             'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'Rsqrt',
+            'dlOpName': 'rsqrt',
             'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'Square',
+            'dlOpName': 'square',
             'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'Tan',
+            'dlOpName': 'tan',
             'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'Tanh',
+            'dlOpName': 'tanh',
             'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'Sign',
+            'dlOpName': 'sign',
             'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'Round',
+            'dlOpName': 'round',
             'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'Expm1',
+            'dlOpName': 'expm1',
             'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'Log1p',
+            'dlOpName': 'log1p',
             'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'Reciprocal',
+            'dlOpName': 'reciprocal',
             'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
+            ]
+        },
+        {
+            'tfOpName': 'Reciprocal',
+            'dlOpName': 'reciprocal',
+            'category': 'basic_math',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'Softplus',
+            'dlOpName': 'softplus',
             'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'Asinh',
+            'dlOpName': 'asinh',
             'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'Acosh',
+            'dlOpName': 'acosh',
             'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'Atanh',
+            'dlOpName': 'atanh',
             'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'Erf',
+            'dlOpName': 'erf',
             'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'Prod',
+            'dlOpName': 'prod',
             'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'axes', 'type': 'number[]' },
-            ],
-            'attrs': [
-                {
-                    'tfName': 'keep_dims',
-                    'name': 'keepDims',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'axes', 'type': 'number[]' }, {
+                    'tfParamName': 'keep_dims',
+                    'dlParamName': 'keepDims',
                     'type': 'bool',
                     'notSupported': true
                 },
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+                {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'LeakyRelu',
+            'dlOpName': 'leakyRelu',
             'category': 'basic_math',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                {
-                    'tfName': 'alpha',
-                    'name': 'alpha',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'alpha',
+                    'dlParamName': 'alpha',
                     'type': 'number',
                     'defaultValue': 0.2
                 },
                 {
-                    'tfName': 'T',
-                    'name': 'dtype',
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
                     'type': 'dtype',
                     'notSupported': true
                 }
@@ -5018,136 +5167,180 @@
     var json$2 = [
         {
             'tfOpName': 'LoopCond',
+            'dlOpName': 'loopCond',
             'category': 'control',
-            'inputs': [{ 'start': 0, 'name': 'pred', 'type': 'tensor' }]
+            'params': [{ 'tfInputIndex': 0, 'dlParamName': 'pred', 'type': 'tensor' }]
         },
         {
             'tfOpName': 'Switch',
+            'dlOpName': 'switch',
             'category': 'control',
-            'inputs': [
-                { 'start': 0, 'name': 'data', 'type': 'tensor' },
-                { 'start': 1, 'name': 'pred', 'type': 'tensor' }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'data', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'pred', 'type': 'tensor' }
             ]
         },
         {
             'tfOpName': 'Merge',
+            'dlOpName': 'merge',
             'category': 'control',
-            'inputs': [{ 'start': 0, 'end': 0, 'name': 'tensors', 'type': 'tensors' }]
+            'params': [{
+                    'tfInputIndex': 0,
+                    'tfInputParamLength': 0,
+                    'dlParamName': 'tensors',
+                    'type': 'tensors'
+                }]
         },
         {
             'tfOpName': 'Enter',
+            'dlOpName': 'enter',
             'category': 'control',
-            'inputs': [
-                { 'start': 0, 'name': 'tensor', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true },
-                { 'tfName': 'frame_name', 'name': 'frameName', 'type': 'string' },
-                { 'tfName': 'is_constant', 'name': 'isConstant', 'type': 'bool' }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'tensor', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                },
+                {
+                    'tfParamName': 'frame_name',
+                    'dlParamName': 'frameName',
+                    'type': 'string'
+                },
+                {
+                    'tfParamName': 'is_constant',
+                    'dlParamName': 'isConstant',
+                    'type': 'bool'
+                }
             ]
         },
         {
             'tfOpName': 'Exit',
+            'dlOpName': 'exit',
             'category': 'control',
-            'inputs': [
-                { 'start': 0, 'name': 'tensor', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'tensor', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'NextIteration',
+            'dlOpName': 'nextIteration',
             'category': 'control',
-            'inputs': [
-                { 'start': 0, 'name': 'tensor', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'tensor', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'TensorArrayV3',
+            'dlOpName': 'tensorArray',
             'category': 'control',
-            'inputs': [
-                { 'start': 0, 'name': 'size', 'type': 'number' },
-            ],
-            'attrs': [
-                { 'tfName': 'dtype', 'name': 'dtype', 'type': 'dtype' },
-                { 'tfName': 'element_shape', 'name': 'elementShape', 'type': 'shape' },
-                { 'tfName': 'dynamic_size', 'name': 'dynamicSize', 'type': 'bool' },
-                { 'tfName': 'clear_after_read', 'name': 'clearAfterRead', 'type': 'bool' },
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'size', 'type': 'number' },
+                { 'tfParamName': 'dtype', 'dlParamName': 'dtype', 'type': 'dtype' }, {
+                    'tfParamName': 'element_shape',
+                    'dlParamName': 'elementShape',
+                    'type': 'shape'
+                },
                 {
-                    'tfName': 'identical_element_shapes',
-                    'name': 'identicalElementShapes',
+                    'tfParamName': 'dynamic_size',
+                    'dlParamName': 'dynamicSize',
                     'type': 'bool'
                 },
-                { 'tfName': 'tensor_array_name', 'name': 'name', 'type': 'string' }
+                {
+                    'tfParamName': 'clear_after_read',
+                    'dlParamName': 'clearAfterRead',
+                    'type': 'bool'
+                },
+                {
+                    'tfParamName': 'identical_element_shapes',
+                    'dlParamName': 'identicalElementShapes',
+                    'type': 'bool'
+                },
+                {
+                    'tfParamName': 'tensor_array_name',
+                    'dlParamName': 'name',
+                    'type': 'string'
+                }
             ]
         },
         {
             'tfOpName': 'TensorArrayWriteV3',
+            'dlOpName': 'tensorArrayWrite',
             'category': 'control',
-            'inputs': [
-                { 'start': 0, 'name': 'tensorArrayId', 'type': 'number' },
-                { 'start': 1, 'name': 'index', 'type': 'number' },
-                { 'start': 2, 'name': 'tensor', 'type': 'tensor' },
-                { 'start': 3, 'name': 'flowIn', 'type': 'number' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'tensorArrayId', 'type': 'number' },
+                { 'tfInputIndex': 1, 'dlParamName': 'index', 'type': 'number' },
+                { 'tfInputIndex': 2, 'dlParamName': 'tensor', 'type': 'tensor' },
+                { 'tfInputIndex': 3, 'dlParamName': 'flowIn', 'type': 'number' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'TensorArrayReadV3',
+            'dlOpName': 'tensorArrayRead',
             'category': 'control',
-            'inputs': [
-                { 'start': 0, 'name': 'tensorArrayId', 'type': 'number' },
-                { 'start': 1, 'name': 'index', 'type': 'number' },
-                { 'start': 2, 'name': 'flowIn', 'type': 'number' },
-            ],
-            'attrs': [{
-                    'tfName': 'dtype',
-                    'name': 'dtype',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'tensorArrayId', 'type': 'number' },
+                { 'tfInputIndex': 1, 'dlParamName': 'index', 'type': 'number' },
+                { 'tfInputIndex': 2, 'dlParamName': 'flowIn', 'type': 'number' }, {
+                    'tfParamName': 'dtype',
+                    'dlParamName': 'dtype',
                     'type': 'dtype',
                     'notSupported': true
-                }]
+                }
+            ]
         },
         {
             'tfOpName': 'TensorArrayGatherV3',
+            'dlOpName': 'tensorArrayGather',
             'category': 'control',
-            'inputs': [
-                { 'start': 0, 'name': 'tensorArrayId', 'type': 'number' },
-                { 'start': 1, 'name': 'indices', 'type': 'number[]' },
-                { 'start': 2, 'name': 'flowIn', 'type': 'number' },
-            ],
-            'attrs': [
-                { 'tfName': 'dtype', 'name': 'dtype', 'type': 'dtype' },
-                { 'tfName': 'element_shape', 'name': 'elementShape', 'type': 'shape' }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'tensorArrayId', 'type': 'number' },
+                { 'tfInputIndex': 1, 'dlParamName': 'indices', 'type': 'number[]' },
+                { 'tfInputIndex': 2, 'dlParamName': 'flowIn', 'type': 'number' },
+                { 'tfParamName': 'dtype', 'dlParamName': 'dtype', 'type': 'dtype' }, {
+                    'tfParamName': 'element_shape',
+                    'dlParamName': 'elementShape',
+                    'type': 'shape'
+                }
             ]
         },
         {
             'tfOpName': 'TensorArrayScatterV3',
+            'dlOpName': 'tensorArrayScatter',
             'category': 'control',
-            'inputs': [
-                { 'start': 0, 'name': 'tensorArrayId', 'type': 'number' },
-                { 'start': 1, 'name': 'indices', 'type': 'number[]' },
-                { 'start': 2, 'name': 'tensor', 'type': 'tensor' },
-                { 'start': 3, 'name': 'flowIn', 'type': 'number' },
-            ],
-            'attrs': [{ 'tfName': 'T', 'name': 'dtype', 'type': 'dtype' }]
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'tensorArrayId', 'type': 'number' },
+                { 'tfInputIndex': 1, 'dlParamName': 'indices', 'type': 'number[]' },
+                { 'tfInputIndex': 2, 'dlParamName': 'tensor', 'type': 'tensor' },
+                { 'tfInputIndex': 3, 'dlParamName': 'flowIn', 'type': 'number' },
+                { 'tfParamName': 'T', 'dlParamName': 'dtype', 'type': 'dtype' }
+            ]
         },
         {
             'tfOpName': 'TensorArrayConcatV3',
+            'dlOpName': 'tensorArrayConcat',
             'category': 'control',
-            'inputs': [
-                { 'start': 0, 'name': 'tensorArrayId', 'type': 'number' },
-                { 'start': 1, 'name': 'flowIn', 'type': 'number' },
-            ],
-            'attrs': [
-                { 'tfName': 'dtype', 'name': 'dtype', 'type': 'dtype' }, {
-                    'tfName': 'element_shape_except0',
-                    'name': 'elementShapeExcept0',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'tensorArrayId', 'type': 'number' },
+                { 'tfInputIndex': 1, 'dlParamName': 'flowIn', 'type': 'number' },
+                { 'tfParamName': 'dtype', 'dlParamName': 'dtype', 'type': 'dtype' }, {
+                    'tfParamName': 'element_shape_except0',
+                    'dlParamName': 'elementShapeExcept0',
                     'type': 'shape',
                     'notSupported': true
                 }
@@ -5155,27 +5348,32 @@
         },
         {
             'tfOpName': 'TensorArraySplitV3',
+            'dlOpName': 'tensorArraySplit',
             'category': 'control',
-            'inputs': [
-                { 'start': 0, 'name': 'tensorArrayId', 'type': 'number' },
-                { 'start': 1, 'name': 'tensor', 'type': 'tensor' },
-                { 'start': 2, 'name': 'lengths', 'type': 'number[]' },
-                { 'start': 3, 'name': 'flowIn', 'type': 'number' },
-            ],
-            'attrs': [{ 'tfName': 'T', 'name': 'dtype', 'type': 'dtype' }]
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'tensorArrayId', 'type': 'number' },
+                { 'tfInputIndex': 1, 'dlParamName': 'tensor', 'type': 'tensor' },
+                { 'tfInputIndex': 2, 'dlParamName': 'lengths', 'type': 'number[]' },
+                { 'tfInputIndex': 3, 'dlParamName': 'flowIn', 'type': 'number' },
+                { 'tfParamName': 'T', 'dlParamName': 'dtype', 'type': 'dtype' }
+            ]
         },
         {
             'tfOpName': 'TensorArraySizeV3',
+            'dlOpName': 'tensorArraySize',
             'category': 'control',
-            'inputs': [
-                { 'start': 0, 'name': 'tensorArrayId', 'type': 'number' },
-                { 'start': 1, 'name': 'flowIn', 'type': 'number' }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'tensorArrayId', 'type': 'number' },
+                { 'tfInputIndex': 1, 'dlParamName': 'flowIn', 'type': 'number' }
             ]
         },
         {
             'tfOpName': 'TensorArrayCloseV3',
+            'dlOpName': 'tensorArrayClose',
             'category': 'control',
-            'inputs': [{ 'start': 0, 'name': 'tensorArrayId', 'type': 'number' }]
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'tensorArrayId', 'type': 'number' }
+            ]
         }
     ];
 
@@ -5186,58 +5384,71 @@
     var json$3 = [
         {
             'tfOpName': 'AvgPool',
+            'dlOpName': 'avgPool',
             'category': 'convolution',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'strides', 'name': 'strides', 'type': 'number[]' },
-                { 'tfName': 'padding', 'name': 'pad', 'type': 'string' }, {
-                    'tfName': 'data_format',
-                    'name': 'dataFormat',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfParamName': 'strides', 'dlParamName': 'strides', 'type': 'number[]' },
+                { 'tfParamName': 'padding', 'dlParamName': 'pad', 'type': 'string' }, {
+                    'tfParamName': 'data_format',
+                    'dlParamName': 'dataFormat',
                     'type': 'string',
                     'notSupported': true
                 },
-                { 'tfName': 'ksize', 'name': 'kernelSize', 'type': 'number[]' },
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+                { 'tfParamName': 'ksize', 'dlParamName': 'kernelSize', 'type': 'number[]' },
+                {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'MaxPool',
+            'dlOpName': 'maxPool',
             'category': 'convolution',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'strides', 'name': 'strides', 'type': 'number[]' },
-                { 'tfName': 'padding', 'name': 'pad', 'type': 'string' }, {
-                    'tfName': 'data_format',
-                    'name': 'dataFormat',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfParamName': 'strides', 'dlParamName': 'strides', 'type': 'number[]' },
+                { 'tfParamName': 'padding', 'dlParamName': 'pad', 'type': 'string' }, {
+                    'tfParamName': 'data_format',
+                    'dlParamName': 'dataFormat',
                     'type': 'string',
                     'notSupported': true
                 },
-                { 'tfName': 'ksize', 'name': 'kernelSize', 'type': 'number[]' },
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+                { 'tfParamName': 'ksize', 'dlParamName': 'kernelSize', 'type': 'number[]' },
+                {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'Conv1D',
+            'dlOpName': 'conv1d',
             'category': 'convolution',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'filter', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'stride', 'name': 'stride', 'type': 'number' },
-                { 'tfName': 'padding', 'name': 'pad', 'type': 'string' }, {
-                    'tfName': 'data_format',
-                    'name': 'dataFormat',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'filter', 'type': 'tensor' },
+                { 'tfParamName': 'stride', 'dlParamName': 'stride', 'type': 'number' },
+                { 'tfParamName': 'padding', 'dlParamName': 'pad', 'type': 'string' }, {
+                    'tfParamName': 'data_format',
+                    'dlParamName': 'dataFormat',
                     'type': 'string',
                     'defaultValue': 'NWC'
                 },
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }, {
-                    'tfName': 'dilation',
-                    'name': 'dilation',
+                {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                },
+                {
+                    'tfParamName': 'dilation',
+                    'dlParamName': 'dilation',
                     'type': 'number',
                     'defaultValue': 1
                 }
@@ -5245,37 +5456,47 @@
         },
         {
             'tfOpName': 'Conv2D',
+            'dlOpName': 'conv2d',
             'category': 'convolution',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'filter', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true },
-                { 'tfName': 'strides', 'name': 'strides', 'type': 'number[]' },
-                { 'tfName': 'padding', 'name': 'pad', 'type': 'string' },
-                { 'tfName': 'useCudnnOnGpu', 'name': 'useCudnnOnGpu', 'type': 'bool' }, {
-                    'tfName': 'data_format',
-                    'name': 'dataFormat',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'filter', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                },
+                { 'tfParamName': 'strides', 'dlParamName': 'strides', 'type': 'number[]' },
+                { 'tfParamName': 'padding', 'dlParamName': 'pad', 'type': 'string' }, {
+                    'tfParamName': 'useCudnnOnGpu',
+                    'dlParamName': 'useCudnnOnGpu',
+                    'type': 'bool'
+                },
+                {
+                    'tfParamName': 'data_format',
+                    'dlParamName': 'dataFormat',
                     'type': 'string',
                     'defaultValue': 'NHWC'
                 },
-                { 'tfName': 'dilations', 'name': 'dilations', 'type': 'number[]' }
+                {
+                    'tfParamName': 'dilations',
+                    'dlParamName': 'dilations',
+                    'type': 'number[]'
+                }
             ]
         },
         {
             'tfOpName': 'Conv2DBackpropInput',
+            'dlOpName': 'conv2dTranspose',
             'category': 'convolution',
-            'inputs': [
-                { 'start': 2, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'filter', 'type': 'tensor' },
-                { 'start': 0, 'name': 'outputShape', 'type': 'number[]' },
-            ],
-            'attrs': [
-                { 'tfName': 'strides', 'name': 'strides', 'type': 'number[]' },
-                { 'tfName': 'padding', 'name': 'pad', 'type': 'string' }, {
-                    'tfName': 'data_format',
-                    'name': 'dataFormat',
+            'params': [
+                { 'tfInputIndex': 2, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'filter', 'type': 'tensor' },
+                { 'tfInputIndex': 0, 'dlParamName': 'outputShape', 'type': 'number[]' },
+                { 'tfParamName': 'strides', 'dlParamName': 'strides', 'type': 'number[]' },
+                { 'tfParamName': 'padding', 'dlParamName': 'pad', 'type': 'string' }, {
+                    'tfParamName': 'data_format',
+                    'dlParamName': 'dataFormat',
                     'type': 'string',
                     'notSupported': true
                 }
@@ -5283,38 +5504,44 @@
         },
         {
             'tfOpName': 'DepthwiseConv2d',
+            'dlOpName': 'depthwiseConv2d',
             'category': 'convolution',
-            'inputs': [
-                { 'start': 0, 'name': 'input', 'type': 'tensor' },
-                { 'start': 1, 'name': 'filter', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'strides', 'name': 'strides', 'type': 'number[]' },
-                { 'tfName': 'padding', 'name': 'pad', 'type': 'string' }, {
-                    'tfName': 'data_format',
-                    'name': 'dataFormat',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'input', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'filter', 'type': 'tensor' },
+                { 'tfParamName': 'strides', 'dlParamName': 'strides', 'type': 'number[]' },
+                { 'tfParamName': 'padding', 'dlParamName': 'pad', 'type': 'string' }, {
+                    'tfParamName': 'data_format',
+                    'dlParamName': 'dataFormat',
                     'type': 'string',
                     'defaultValue': 'NHWC'
                 },
-                { 'tfName': 'dilations', 'name': 'dilations', 'type': 'number[]' }
+                {
+                    'tfParamName': 'dilations',
+                    'dlParamName': 'dilations',
+                    'type': 'number[]'
+                }
             ]
         },
         {
             'tfOpName': 'DepthwiseConv2dNative',
+            'dlOpName': 'depthwiseConv2d',
             'category': 'convolution',
-            'inputs': [
-                { 'start': 0, 'name': 'input', 'type': 'tensor' },
-                { 'start': 1, 'name': 'filter', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'strides', 'name': 'strides', 'type': 'number[]' },
-                { 'tfName': 'padding', 'name': 'pad', 'type': 'string' }, {
-                    'tfName': 'data_format',
-                    'name': 'dataFormat',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'input', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'filter', 'type': 'tensor' },
+                { 'tfParamName': 'strides', 'dlParamName': 'strides', 'type': 'number[]' },
+                { 'tfParamName': 'padding', 'dlParamName': 'pad', 'type': 'string' }, {
+                    'tfParamName': 'data_format',
+                    'dlParamName': 'dataFormat',
                     'type': 'string',
                     'defaultValue': 'NHWC'
                 },
-                { 'tfName': 'dilations', 'name': 'dilations', 'type': 'number[]' }
+                {
+                    'tfParamName': 'dilations',
+                    'dlParamName': 'dilations',
+                    'type': 'number[]'
+                }
             ]
         }
     ];
@@ -5326,145 +5553,181 @@
     var json$4 = [
         {
             'tfOpName': 'Fill',
+            'dlOpName': 'fill',
             'category': 'creation',
-            'inputs': [
-                { 'start': 0, 'name': 'shape', 'type': 'number[]' },
-                { 'start': 1, 'name': 'value', 'type': 'number' },
-            ],
-            'attrs': [{ 'tfName': 'T', 'name': 'dtype', 'type': 'dtype' }]
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'shape', 'type': 'number[]' },
+                { 'tfInputIndex': 1, 'dlParamName': 'value', 'type': 'number' },
+                { 'tfParamName': 'T', 'dlParamName': 'dtype', 'type': 'dtype' }
+            ]
         },
         {
             'tfOpName': 'LinSpace',
+            'dlOpName': 'linspace',
             'category': 'creation',
-            'inputs': [
-                { 'start': 0, 'name': 'start', 'type': 'number' },
-                { 'start': 1, 'name': 'stop', 'type': 'number' },
-                { 'start': 2, 'name': 'num', 'type': 'number' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'start', 'type': 'number' },
+                { 'tfInputIndex': 1, 'dlParamName': 'stop', 'type': 'number' },
+                { 'tfInputIndex': 2, 'dlParamName': 'num', 'type': 'number' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'OneHot',
+            'dlOpName': 'oneHot',
             'category': 'creation',
-            'inputs': [
-                { 'start': 0, 'name': 'indices', 'type': 'tensor' },
-                { 'start': 1, 'name': 'depth', 'type': 'number' },
-                { 'start': 2, 'name': 'onValue', 'type': 'number', 'defaultValue': 1 },
-                { 'start': 3, 'name': 'offValue', 'type': 'number', 'defaultValue': 0 },
-            ],
-            'attrs': [
-                {
-                    'tfName': 'axis',
-                    'name': 'axis',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'indices', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'depth', 'type': 'number' }, {
+                    'tfInputIndex': 2,
+                    'dlParamName': 'onValue',
                     'type': 'number',
-                    'notSupported': true
+                    'defaultValue': 1
                 },
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
-            ]
-        },
-        {
-            'tfOpName': 'Ones',
-            'category': 'creation',
-            'inputs': [
-                { 'start': 0, 'name': 'shape', 'type': 'number[]' },
-            ],
-            'attrs': [{ 'tfName': 'T', 'name': 'dtype', 'type': 'dtype' }]
-        },
-        {
-            'tfOpName': 'OnesLike',
-            'category': 'creation',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [{ 'tfName': 'dtype', 'name': 'dtype', 'type': 'dtype' }]
-        },
-        {
-            'tfOpName': 'RandomUniform',
-            'category': 'creation',
-            'inputs': [
-                { 'start': 0, 'name': 'shape', 'type': 'number[]' },
-            ],
-            'attrs': [
                 {
-                    'tfName': 'minval',
-                    'name': 'minval',
+                    'tfInputIndex': 3,
+                    'dlParamName': 'offValue',
                     'type': 'number',
                     'defaultValue': 0
                 },
                 {
-                    'tfName': 'maxval',
-                    'name': 'maxval',
+                    'tfParamName': 'axis',
+                    'dlParamName': 'axis',
+                    'type': 'number',
+                    'notSupported': true
+                },
+                {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
+            ]
+        },
+        {
+            'tfOpName': 'Ones',
+            'dlOpName': 'ones',
+            'category': 'creation',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'shape', 'type': 'number[]' },
+                { 'tfParamName': 'T', 'dlParamName': 'dtype', 'type': 'dtype' }
+            ]
+        },
+        {
+            'tfOpName': 'OnesLike',
+            'dlOpName': 'onesLike',
+            'category': 'creation',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfParamName': 'dtype', 'dlParamName': 'dtype', 'type': 'dtype' }
+            ]
+        },
+        {
+            'tfOpName': 'RandomUniform',
+            'dlOpName': 'randomUniform',
+            'category': 'creation',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'shape', 'type': 'number[]' }, {
+                    'tfParamName': 'minval',
+                    'dlParamName': 'minval',
+                    'type': 'number',
+                    'defaultValue': 0
+                },
+                {
+                    'tfParamName': 'maxval',
+                    'dlParamName': 'maxval',
                     'type': 'number',
                     'defaultValue': 1
                 },
-                { 'tfName': 'dtype', 'name': 'dtype', 'type': 'dtype' },
-                { 'tfName': 'seed', 'name': 'seed', 'type': 'number', 'defaultValue': 0 }, {
-                    'tfName': 'seed2',
-                    'name': 'seed2',
+                { 'tfParamName': 'dtype', 'dlParamName': 'dtype', 'type': 'dtype' }, {
+                    'tfParamName': 'seed',
+                    'dlParamName': 'seed',
+                    'type': 'number',
+                    'defaultValue': 0
+                },
+                {
+                    'tfParamName': 'seed2',
+                    'dlParamName': 'seed2',
                     'type': 'number',
                     'defaultValue': 0,
                     'notSupported': true
                 },
-                { 'tfName': 'T', 'name': 'T', 'type': 'number', 'notSupported': true }
+                {
+                    'tfParamName': 'T',
+                    'dlParamName': 'T',
+                    'type': 'number',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'Range',
+            'dlOpName': 'range',
             'category': 'creation',
-            'inputs': [
-                { 'start': 0, 'name': 'start', 'type': 'number' },
-                { 'start': 1, 'name': 'stop', 'type': 'number' },
-                { 'start': 2, 'name': 'step', 'type': 'number', 'defaultValue': 0 },
-            ],
-            'attrs': [{ 'tfName': 'Tidx', 'name': 'dtype', 'type': 'dtype' }]
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'start', 'type': 'number' },
+                { 'tfInputIndex': 1, 'dlParamName': 'stop', 'type': 'number' }, {
+                    'tfInputIndex': 2,
+                    'dlParamName': 'step',
+                    'type': 'number',
+                    'defaultValue': 0
+                },
+                { 'tfParamName': 'Tidx', 'dlParamName': 'dtype', 'type': 'dtype' }
+            ]
         },
         {
-            'tfOpName': 'TruncatedNormal',
+            'tfOpName': 'truncatedNormal',
+            'dlOpName': 'truncatedNormal',
             'category': 'creation',
-            'inputs': [
-                { 'start': 0, 'name': 'shape', 'type': 'number[]' },
-            ],
-            'attrs': [
-                {
-                    'tfName': 'means',
-                    'name': 'mean',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'shape', 'type': 'number[]' }, {
+                    'tfParamName': 'means',
+                    'dlParamName': 'mean',
                     'type': 'number',
                     'defaultValue': 0.0
                 },
                 {
-                    'tfName': 'stddev',
-                    'name': 'stdDev',
+                    'tfParamName': 'stddev',
+                    'dlParamName': 'stdDev',
                     'type': 'number',
                     'defaultValue': 1.0
                 },
-                { 'tfName': 'seed', 'name': 'seed', 'type': 'number' }, {
-                    'tfName': 'seed2',
-                    'name': 'seed2',
+                { 'tfParamName': 'seed', 'dlParamName': 'seed', 'type': 'number' }, {
+                    'tfParamName': 'seed2',
+                    'dlParamName': 'seed2',
                     'type': 'number',
                     'defaultValue': 0,
                     'notSupported': true
                 },
-                { 'tfName': 'dtype', 'name': 'dtype', 'type': 'dtype' },
-                { 'tfName': 'T', 'name': 'T', 'type': 'number', 'notSupported': true }
+                { 'tfParamName': 'dtype', 'dlParamName': 'dtype', 'type': 'dtype' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'T',
+                    'type': 'number',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'Zeros',
+            'dlOpName': 'zeros',
             'category': 'creation',
-            'inputs': [
-                { 'start': 0, 'name': 'shape', 'type': 'number[]' },
-            ],
-            'attrs': [{ 'tfName': 'T', 'name': 'dtype', 'type': 'dtype' }]
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'shape', 'type': 'number[]' },
+                { 'tfParamName': 'T', 'dlParamName': 'dtype', 'type': 'dtype' }
+            ]
         },
         {
             'tfOpName': 'ZerosLike',
+            'dlOpName': 'zerosLike',
             'category': 'creation',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [{ 'tfName': 'T', 'name': 'dtype', 'type': 'dtype' }]
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfParamName': 'T', 'dlParamName': 'dtype', 'type': 'dtype' }
+            ]
         }
     ];
 
@@ -5475,48 +5738,53 @@
     var json$5 = [
         {
             'tfOpName': 'NonMaxSuppressionV2',
+            'dlOpName': 'nonMaxSuppression',
             'category': 'dynamic',
-            'inputs': [
-                { 'start': 0, 'name': 'boxes', 'type': 'tensor' },
-                { 'start': 1, 'name': 'scores', 'type': 'tensor' },
-                { 'start': 2, 'name': 'maxOutputSize', 'type': 'number' },
-                { 'start': 3, 'name': 'iouThreshold', 'type': 'number' }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'boxes', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'scores', 'type': 'tensor' },
+                { 'tfInputIndex': 2, 'dlParamName': 'maxOutputSize', 'type': 'number' },
+                { 'tfInputIndex': 3, 'dlParamName': 'iouThreshold', 'type': 'number' }
             ]
         },
         {
             'tfOpName': 'NonMaxSuppressionV3',
+            'dlOpName': 'nonMaxSuppression',
             'category': 'dynamic',
-            'inputs': [
-                { 'start': 0, 'name': 'boxes', 'type': 'tensor' },
-                { 'start': 1, 'name': 'scores', 'type': 'tensor' },
-                { 'start': 2, 'name': 'maxOutputSize', 'type': 'number' },
-                { 'start': 3, 'name': 'iouThreshold', 'type': 'number' },
-                { 'start': 4, 'name': 'scoreThreshold', 'type': 'number' }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'boxes', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'scores', 'type': 'tensor' },
+                { 'tfInputIndex': 2, 'dlParamName': 'maxOutputSize', 'type': 'number' },
+                { 'tfInputIndex': 3, 'dlParamName': 'iouThreshold', 'type': 'number' },
+                { 'tfInputIndex': 4, 'dlParamName': 'scoreThreshold', 'type': 'number' }
             ]
         },
         {
             'tfOpName': 'Where',
+            'dlOpName': 'whereAsync',
             'category': 'dynamic',
-            'inputs': [
-                { 'start': 0, 'name': 'condition', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'condition', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'ListDiff',
+            'dlOpName': 'setdiff1dAsync',
             'category': 'dynamic',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'y', 'type': 'tensor' },
-            ],
-            'attrs': [{
-                    'tfName': 'T',
-                    'name': 'dtype',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'y', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
                     'type': 'dtype',
                     'notSupported': true
-                }]
+                }
+            ]
         }
     ];
 
@@ -5526,12 +5794,13 @@
 
     var json$6 = [{
             'tfOpName': 'TopKV2',
+            'dlOpName': 'topK',
             'category': 'evaluation',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'k', 'type': 'number' },
-            ],
-            'attrs': [{ 'tfName': 'sorted', 'name': 'sorted', 'type': 'bool' }]
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'k', 'type': 'number' },
+                { 'tfParamName': 'sorted', 'dlParamName': 'sorted', 'type': 'bool' }
+            ]
         }];
 
     var evaluation = /*#__PURE__*/Object.freeze({
@@ -5541,89 +5810,103 @@
     var json$7 = [
         {
             'tfOpName': 'PlaceholderWithDefault',
+            'dlOpName': 'placeholder',
             'category': 'graph',
-            'inputs': [
-                { 'start': 0, 'name': 'default', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'shape', 'name': 'shape', 'type': 'shape' },
-                { 'tfName': 'dtype', 'name': 'dtype', 'type': 'dtype' }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'default', 'type': 'tensor' },
+                { 'tfParamName': 'shape', 'dlParamName': 'shape', 'type': 'shape' },
+                { 'tfParamName': 'dtype', 'dlParamName': 'dtype', 'type': 'dtype' }
             ]
         },
         {
             'tfOpName': 'Placeholder',
+            'dlOpName': 'placeholder',
             'category': 'graph',
-            'attrs': [
-                { 'tfName': 'shape', 'name': 'shape', 'type': 'shape' },
-                { 'tfName': 'dtype', 'name': 'dtype', 'type': 'dtype' }
+            'params': [
+                { 'tfParamName': 'shape', 'dlParamName': 'shape', 'type': 'shape' },
+                { 'tfParamName': 'dtype', 'dlParamName': 'dtype', 'type': 'dtype' }
             ]
         },
-        { 'tfOpName': 'Const', 'category': 'graph' }, {
+        { 'tfOpName': 'Const', 'dlOpName': 'const', 'category': 'graph' }, {
             'tfOpName': 'Identity',
+            'dlOpName': 'identity',
             'category': 'graph',
-            'inputs': [{ 'start': 0, 'name': 'x', 'type': 'tensor' }]
+            'params': [{ 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }]
         },
         {
             'tfOpName': 'Snapshot',
+            'dlOpName': 'snapshot',
             'category': 'graph',
-            'inputs': [{ 'start': 0, 'name': 'x', 'type': 'tensor' }]
+            'params': [{ 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }]
         },
         {
             'tfOpName': 'Rank',
+            'dlOpName': 'rank',
             'category': 'graph',
-            'inputs': [{ 'start': 0, 'name': 'x', 'type': 'tensor' }]
+            'params': [{ 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }]
         },
         {
             'tfOpName': 'Size',
+            'dlOpName': 'size',
             'category': 'graph',
-            'inputs': [{ 'start': 0, 'name': 'x', 'type': 'tensor' }]
+            'params': [{ 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }]
         },
         {
             'tfOpName': 'Shape',
+            'dlOpName': 'shape',
             'category': 'graph',
-            'inputs': [{ 'start': 0, 'name': 'x', 'type': 'tensor' }]
+            'params': [{ 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }]
         },
         {
             'tfOpName': 'ShapeN',
+            'dlOpName': 'shapeN',
             'category': 'graph',
-            'inputs': [{ 'start': 0, 'end': 0, 'name': 'x', 'type': 'tensors' }]
+            'params': [{
+                    'tfInputIndex': 0,
+                    'tfInputParamLength': 0,
+                    'dlParamName': 'x',
+                    'type': 'tensors'
+                }]
         },
         {
             'tfOpName': 'Print',
+            'dlOpName': 'print',
             'category': 'graph',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'data', 'type': 'tensors' },
-            ],
-            'attrs': [
-                { 'tfName': 'message', 'name': 'message', 'type': 'string' }, {
-                    'tfName': 'first_n',
-                    'name': 'firstN',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfInputIndex': 1,
+                    'tfInputParamLength': 1,
+                    'dlParamName': 'data',
+                    'type': 'tensors'
+                },
+                { 'tfParamName': 'message', 'dlParamName': 'message', 'type': 'string' }, {
+                    'tfParamName': 'first_n',
+                    'dlParamName': 'firstN',
                     'type': 'number',
-                    'notSupported': true
+                    'notSupprted': true
                 },
                 {
-                    'tfName': 'summarize',
-                    'name': 'summarize',
+                    'tfParamName': 'summarize',
+                    'dlParamName': 'summarize',
                     'type': 'number',
                     'defaultValue': 3
                 }
             ]
         },
-        { 'tfOpName': 'NoOp', 'category': 'graph', 'inputs': [] }, {
+        { 'tfOpName': 'NoOp', 'dlOpName': 'noop', 'category': 'graph', 'params': [] }, {
             'tfOpName': 'StopGradient',
+            'dlOpName': 'stopGradient',
             'category': 'graph',
-            'inputs': [{ 'start': 0, 'name': 'x', 'type': 'tensor' }]
+            'params': [{ 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }]
         },
         {
             'tfOpName': 'FakeQuantWithMinMaxVars',
+            'dlOpName': 'fakeQuantWithMinMaxVars',
             'category': 'graph',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'min', 'name': 'min', 'type': 'number' },
-                { 'tfName': 'max', 'name': 'max', 'type': 'number' }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfParamName': 'min', 'dlParamName': 'min', 'type': 'number' },
+                { 'tfParamName': 'max', 'dlParamName': 'max', 'type': 'number' }
             ]
         }
     ];
@@ -5635,41 +5918,54 @@
     var json$8 = [
         {
             'tfOpName': 'ResizeBilinear',
+            'dlOpName': 'resizeBilinear',
             'category': 'image',
-            'inputs': [
-                { 'start': 0, 'name': 'images', 'type': 'tensor' },
-                { 'start': 1, 'name': 'size', 'type': 'number[]' },
-            ],
-            'attrs': [
-                { 'tfName': 'align_corners', 'name': 'alignCorners', 'type': 'bool' },
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'images', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'size', 'type': 'number[]' }, {
+                    'tfParamName': 'align_corners',
+                    'dlParamName': 'alignCorners',
+                    'type': 'bool'
+                },
+                {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'ResizeNearestNeighbor',
+            'dlOpName': 'resizeNearestNeighbor',
             'category': 'image',
-            'inputs': [
-                { 'start': 0, 'name': 'images', 'type': 'tensor' },
-                { 'start': 1, 'name': 'size', 'type': 'number[]' },
-            ],
-            'attrs': [
-                { 'tfName': 'align_corners', 'name': 'alignCorners', 'type': 'bool' },
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'images', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'size', 'type': 'number[]' }, {
+                    'tfParamName': 'align_corners',
+                    'dlParamName': 'alignCorners',
+                    'type': 'bool'
+                },
+                {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'CropAndResize',
+            'dlOpName': 'cropAndResize',
             'category': 'image',
-            'inputs': [
-                { 'start': 0, 'name': 'image', 'type': 'tensor' },
-                { 'start': 1, 'name': 'boxes', 'type': 'tensor' },
-                { 'start': 2, 'name': 'boxInd', 'type': 'tensor' },
-                { 'start': 3, 'name': 'cropSize', 'type': 'number[]' },
-            ],
-            'attrs': [
-                { 'tfName': 'method', 'name': 'method', 'type': 'string' }, {
-                    'tfName': 'extrapolation_value',
-                    'name': 'extrapolationValue',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'image', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'boxes', 'type': 'tensor' },
+                { 'tfInputIndex': 2, 'dlParamName': 'boxInd', 'type': 'tensor' },
+                { 'tfInputIndex': 3, 'dlParamName': 'cropSize', 'type': 'number[]' },
+                { 'tfParamName': 'method', 'dlParamName': 'method', 'type': 'string' }, {
+                    'tfParamName': 'extrapolation_value',
+                    'dlParamName': 'extrapolationValue',
                     'type': 'number'
                 }
             ]
@@ -5683,116 +5979,143 @@
     var json$9 = [
         {
             'tfOpName': 'Equal',
+            'dlOpName': 'equal',
             'category': 'logical',
-            'inputs': [
-                { 'start': 0, 'name': 'a', 'type': 'tensor' },
-                { 'start': 1, 'name': 'b', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'NotEqual',
+            'dlOpName': 'notEqual',
             'category': 'logical',
-            'inputs': [
-                { 'start': 0, 'name': 'a', 'type': 'tensor' },
-                { 'start': 1, 'name': 'b', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'Greater',
+            'dlOpName': 'greater',
             'category': 'logical',
-            'inputs': [
-                { 'start': 0, 'name': 'a', 'type': 'tensor' },
-                { 'start': 1, 'name': 'b', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'GreaterEqual',
+            'dlOpName': 'greaterEqual',
             'category': 'logical',
-            'inputs': [
-                { 'start': 0, 'name': 'a', 'type': 'tensor' },
-                { 'start': 1, 'name': 'b', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'Less',
+            'dlOpName': 'less',
             'category': 'logical',
-            'inputs': [
-                { 'start': 0, 'name': 'a', 'type': 'tensor' },
-                { 'start': 1, 'name': 'b', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'LessEqual',
+            'dlOpName': 'lessEqual',
             'category': 'logical',
-            'inputs': [
-                { 'start': 0, 'name': 'a', 'type': 'tensor' },
-                { 'start': 1, 'name': 'b', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'LogicalAnd',
+            'dlOpName': 'logicalAnd',
             'category': 'logical',
-            'inputs': [
-                { 'start': 0, 'name': 'a', 'type': 'tensor' },
-                { 'start': 1, 'name': 'b', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'LogicalNot',
+            'dlOpName': 'logicalNot',
             'category': 'logical',
-            'inputs': [
-                { 'start': 0, 'name': 'a', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'LogicalOr',
+            'dlOpName': 'logicalOr',
             'category': 'logical',
-            'inputs': [
-                { 'start': 0, 'name': 'a', 'type': 'tensor' },
-                { 'start': 1, 'name': 'b', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'Select',
+            'dlOpName': 'where',
             'category': 'logical',
-            'inputs': [
-                { 'start': 0, 'name': 'condition', 'type': 'tensor' },
-                { 'start': 1, 'name': 'a', 'type': 'tensor' },
-                { 'start': 2, 'name': 'b', 'type': 'tensor' },
-            ],
-            'attrs': [{
-                    'tfName': 'T',
-                    'name': 'dtype',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'condition', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'a', 'type': 'tensor' },
+                { 'tfInputIndex': 2, 'dlParamName': 'b', 'type': 'tensor' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
                     'type': 'dtype',
                     'notSupported': true
-                }]
+                }
+            ]
         }
     ];
 
@@ -5803,63 +6126,69 @@
     var json$10 = [
         {
             'tfOpName': 'MatMul',
+            'dlOpName': 'matMul',
             'category': 'matrices',
-            'inputs': [
-                { 'start': 0, 'name': 'a', 'type': 'tensor' },
-                { 'start': 1, 'name': 'b', 'type': 'tensor' },
-            ],
-            'attrs': [
-                {
-                    'tfName': 'transpose_a',
-                    'name': 'transposeA',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
+                    'tfParamName': 'transpose_a',
+                    'dlParamName': 'transposeA',
                     'type': 'bool',
                     'defaultValue': false
                 },
                 {
-                    'tfName': 'transpose_b',
-                    'name': 'transposeB',
+                    'tfParamName': 'transpose_b',
+                    'dlParamName': 'transposeB',
                     'type': 'bool',
                     'defaultValue': false
                 },
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+                {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'BatchMatMul',
+            'dlOpName': 'matMul',
             'category': 'matrices',
-            'inputs': [
-                { 'start': 0, 'name': 'a', 'type': 'tensor' },
-                { 'start': 1, 'name': 'b', 'type': 'tensor' },
-            ],
-            'attrs': [
-                {
-                    'tfName': 'adj_x',
-                    'name': 'transposeA',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
+                    'tfParamName': 'adj_x',
+                    'dlParamName': 'transposeA',
                     'type': 'bool',
                     'defaultValue': false
                 },
                 {
-                    'tfName': 'adj_y',
-                    'name': 'transposeB',
+                    'tfParamName': 'adj_y',
+                    'dlParamName': 'transposeB',
                     'type': 'bool',
                     'defaultValue': false
                 },
-                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
+                {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
+                    'type': 'dtype',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'Transpose',
+            'dlOpName': 'transpose',
             'category': 'matrices',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'perm', 'type': 'number[]' },
-            ],
-            'attrs': [{
-                    'tfName': 'T',
-                    'name': 'dtype',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'perm', 'type': 'number[]' }, {
+                    'tfParamName': 'T',
+                    'dlParamName': 'dtype',
                     'type': 'dtype',
                     'notSupported': true
-                }]
+                }
+            ]
         }
     ];
 
@@ -5870,24 +6199,22 @@
     var json$11 = [
         {
             'tfOpName': 'FusedBatchNorm',
+            'dlOpName': 'batchNormalization',
             'category': 'normalization',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'scale', 'type': 'tensor' },
-                { 'start': 2, 'name': 'offset', 'type': 'tensor' },
-                { 'start': 3, 'name': 'mean', 'type': 'tensor' },
-                { 'start': 4, 'name': 'variance', 'type': 'tensor' },
-            ],
-            'attrs': [
-                {
-                    'tfName': 'epsilon',
-                    'name': 'epsilon',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'scale', 'type': 'tensor' },
+                { 'tfInputIndex': 2, 'dlParamName': 'offset', 'type': 'tensor' },
+                { 'tfInputIndex': 3, 'dlParamName': 'mean', 'type': 'tensor' },
+                { 'tfInputIndex': 4, 'dlParamName': 'variance', 'type': 'tensor' }, {
+                    'tfParamName': 'epsilon',
+                    'dlParamName': 'epsilon',
                     'type': 'number',
                     'defaultValue': 0.001
                 },
                 {
-                    'tfName': 'data_format',
-                    'name': 'dataFormat',
+                    'tfParamName': 'data_format',
+                    'dlParamName': 'dataFormat',
                     'type': 'string',
                     'notSupported': true
                 }
@@ -5895,24 +6222,22 @@
         },
         {
             'tfOpName': 'FusedBatchNormV2',
+            'dlOpName': 'batchNormalization',
             'category': 'normalization',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'scale', 'type': 'tensor' },
-                { 'start': 2, 'name': 'offset', 'type': 'tensor' },
-                { 'start': 3, 'name': 'mean', 'type': 'tensor' },
-                { 'start': 4, 'name': 'variance', 'type': 'tensor' },
-            ],
-            'attrs': [
-                {
-                    'tfName': 'epsilon',
-                    'name': 'epsilon',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'scale', 'type': 'tensor' },
+                { 'tfInputIndex': 2, 'dlParamName': 'offset', 'type': 'tensor' },
+                { 'tfInputIndex': 3, 'dlParamName': 'mean', 'type': 'tensor' },
+                { 'tfInputIndex': 4, 'dlParamName': 'variance', 'type': 'tensor' }, {
+                    'tfParamName': 'epsilon',
+                    'dlParamName': 'epsilon',
                     'type': 'number',
                     'defaultValue': 0.001
                 },
                 {
-                    'tfName': 'data_format',
-                    'name': 'dataFormat',
+                    'tfParamName': 'data_format',
+                    'dlParamName': 'dataFormat',
                     'type': 'string',
                     'notSupported': true
                 }
@@ -5920,27 +6245,30 @@
         },
         {
             'tfOpName': 'LRN',
+            'dlOpName': 'localResponseNormalization',
             'category': 'normalization',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                {
-                    'tfName': 'depth_radius',
-                    'name': 'radius',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'depth_radius',
+                    'dlParamName': 'radius',
                     'type': 'number',
                     'defaultValue': 5
                 },
-                { 'tfName': 'bias', 'name': 'bias', 'type': 'number', 'defaultValue': 1.0 },
                 {
-                    'tfName': 'alpha',
-                    'name': 'alpha',
+                    'tfParamName': 'bias',
+                    'dlParamName': 'bias',
                     'type': 'number',
                     'defaultValue': 1.0
                 },
                 {
-                    'tfName': 'beta',
-                    'name': 'beta',
+                    'tfParamName': 'alpha',
+                    'dlParamName': 'alpha',
+                    'type': 'number',
+                    'defaultValue': 1.0
+                },
+                {
+                    'tfParamName': 'beta',
+                    'dlParamName': 'beta',
                     'type': 'number',
                     'defaultValue': 0.5
                 }
@@ -5948,30 +6276,32 @@
         },
         {
             'tfOpName': 'Softmax',
+            'dlOpName': 'softmax',
             'category': 'normalization',
-            'inputs': [{ 'start': 0, 'name': 'x', 'type': 'tensor' }]
+            'params': [{ 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }]
         },
         {
             'tfOpName': 'LogSoftmax',
+            'dlOpName': 'logSoftmax',
             'category': 'normalization',
-            'inputs': [{ 'start': 0, 'name': 'x', 'type': 'tensor' }]
+            'params': [{ 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }]
         },
         {
             'tfOpName': 'SparseToDense',
+            'dlOpName': 'sparseToDense',
             'category': 'normalization',
-            'inputs': [
-                { 'start': 0, 'name': 'sparseIndices', 'type': 'tensor' },
-                { 'start': 1, 'name': 'outputShape', 'type': 'number[]' },
-                { 'start': 2, 'name': 'sparseValues', 'type': 'tensor' },
-                { 'start': 3, 'name': 'defaultValue', 'type': 'tensor' },
-            ],
-            'attrs': [{
-                    'tfName': 'validate_indices',
-                    'name': 'validateIndices',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'sparseIndices', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'outputShape', 'type': 'number[]' },
+                { 'tfInputIndex': 2, 'dlParamName': 'sparseValues', 'type': 'tensor' },
+                { 'tfInputIndex': 3, 'dlParamName': 'defaultValue', 'type': 'tensor' }, {
+                    'tfParamName': 'validate_indices',
+                    'dlParamName': 'validateIndices',
                     'type': 'bool',
                     'defaultValue': true,
                     'notSupported': true
-                }]
+                }
+            ]
         }
     ];
 
@@ -5982,82 +6312,94 @@
     var json$12 = [
         {
             'tfOpName': 'Max',
+            'dlOpName': 'max',
             'category': 'reduction',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'axis', 'type': 'number[]' },
-            ],
-            'attrs': [{ 'tfName': 'keep_dims', 'name': 'keepDims', 'type': 'bool' }]
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'axis', 'type': 'number[]' },
+                { 'tfParamName': 'keep_dims', 'dlParamName': 'keepDims', 'type': 'bool' }
+            ]
         },
         {
             'tfOpName': 'Mean',
+            'dlOpName': 'mean',
             'category': 'reduction',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'axis', 'type': 'number[]' },
-            ],
-            'attrs': [{ 'tfName': 'keep_dims', 'name': 'keepDims', 'type': 'bool' }]
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'axis', 'type': 'number[]' },
+                { 'tfParamName': 'keep_dims', 'dlParamName': 'keepDims', 'type': 'bool' }
+            ]
         },
         {
             'tfOpName': 'Min',
+            'dlOpName': 'min',
             'category': 'reduction',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'axis', 'type': 'number[]' },
-            ],
-            'attrs': [{ 'tfName': 'keep_dims', 'name': 'keepDims', 'type': 'bool' }]
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'axis', 'type': 'number[]' },
+                { 'tfParamName': 'keep_dims', 'dlParamName': 'keepDims', 'type': 'bool' }
+            ]
         },
         {
             'tfOpName': 'Sum',
+            'dlOpName': 'sum',
             'category': 'reduction',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'axis', 'type': 'number[]' },
-            ],
-            'attrs': [{ 'tfName': 'keep_dims', 'name': 'keepDims', 'type': 'bool' }]
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'axis', 'type': 'number[]' },
+                { 'tfParamName': 'keep_dims', 'dlParamName': 'keepDims', 'type': 'bool' }
+            ]
         },
         {
             'tfOpName': 'All',
+            'dlOpName': 'all',
             'category': 'reduction',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'axis', 'type': 'number[]' },
-            ],
-            'attrs': [{ 'tfName': 'keep_dims', 'name': 'keepDims', 'type': 'bool' }]
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'axis', 'type': 'number[]' },
+                { 'tfParamName': 'keep_dims', 'dlParamName': 'keepDims', 'type': 'bool' }
+            ]
         },
         {
             'tfOpName': 'Any',
+            'dlOpName': 'any',
             'category': 'reduction',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'axis', 'type': 'number[]' },
-            ],
-            'attrs': [{ 'tfName': 'keep_dims', 'name': 'keepDims', 'type': 'bool' }]
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'axis', 'type': 'number[]' },
+                { 'tfParamName': 'keep_dims', 'dlParamName': 'keepDims', 'type': 'bool' }
+            ]
         },
         {
             'tfOpName': 'ArgMax',
+            'dlOpName': 'argMax',
             'category': 'reduction',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'axis', 'type': 'number' }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'axis', 'type': 'number' }
             ]
         },
         {
             'tfOpName': 'ArgMin',
+            'dlOpName': 'argMin',
             'category': 'reduction',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'axis', 'type': 'number' }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'axis', 'type': 'number' }
             ]
         },
         {
             'tfOpName': 'Prod',
+            'dlOpName': 'prod',
             'category': 'reduction',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'axis', 'type': 'number[]' },
-            ],
-            'attrs': [{ 'tfName': 'keep_dims', 'name': 'keepDims', 'type': 'bool' }]
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'axis', 'type': 'number[]' }, {
+                    'tfParamName': 'keep_dims',
+                    'dlParamName': 'keepDims',
+                    'type': 'bool'
+                }
+            ]
         }
     ];
 
@@ -6068,40 +6410,61 @@
     var json$13 = [
         {
             'tfOpName': 'ConcatV2',
+            'dlOpName': 'concat',
             'category': 'slice_join',
-            'inputs': [
-                { 'start': 0, 'end': -1, 'name': 'tensors', 'type': 'tensors' },
-                { 'start': -1, 'name': 'axis', 'type': 'number' }
+            'params': [
+                {
+                    'tfInputIndex': 0,
+                    'tfInputParamLength': 1,
+                    'dlParamName': 'tensors',
+                    'type': 'tensors'
+                },
+                { 'tfInputIndex': -1, 'dlParamName': 'axis', 'type': 'number' }
             ]
         },
         {
             'tfOpName': 'Concat',
+            'dlOpName': 'concat',
             'category': 'slice_join',
-            'inputs': [
-                { 'start': 1, 'end': 0, 'name': 'tensors', 'type': 'tensors' },
-                { 'start': 0, 'name': 'axis', 'type': 'number' }
+            'params': [
+                {
+                    'tfInputIndex': 1,
+                    'tfInputParamLength': 1,
+                    'dlParamName': 'tensors',
+                    'type': 'tensors'
+                },
+                { 'tfInputIndex': 0, 'dlParamName': 'axis', 'type': 'number' }
             ]
         },
         {
             'tfOpName': 'GatherV2',
+            'dlOpName': 'gather',
             'category': 'slice_join',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'indices', 'type': 'tensor' },
-                { 'start': 2, 'name': 'axis', 'type': 'number', 'defaultValue': 0 }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'indices', 'type': 'tensor' }, {
+                    'tfInputIndex': 2,
+                    'dlParamName': 'axis',
+                    'type': 'number',
+                    'defaultValue': 0
+                }
             ]
         },
         {
             'tfOpName': 'Gather',
+            'dlOpName': 'gather',
             'category': 'slice_join',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'indices', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'axis', 'name': 'axis', 'type': 'number', 'defaultValue': 0 }, {
-                    'tfName': 'validate_indices',
-                    'name': 'validateIndices',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'indices', 'type': 'tensor' }, {
+                    'tfParamName': 'axis',
+                    'dlParamName': 'axis',
+                    'type': 'number',
+                    'defaultValue': 0
+                },
+                {
+                    'tfParamName': 'validate_indices',
+                    'dlParamName': 'validateIndices',
                     'type': 'bool',
                     'notSupported': true
                 }
@@ -6109,66 +6472,71 @@
         },
         {
             'tfOpName': 'Reverse',
+            'dlOpName': 'reverse',
             'category': 'slice_join',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'dims', 'type': 'bool', 'notSupported': true }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfInputIndex': 1,
+                    'dlParamName': 'dims',
+                    'type': 'bool',
+                    'notSupported': true
+                }
             ]
         },
         {
             'tfOpName': 'ReverseV2',
+            'dlOpName': 'reverse',
             'category': 'slice_join',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'axis', 'type': 'number[]' }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'axis', 'type': 'number[]' }
             ]
         },
         {
             'tfOpName': 'Slice',
+            'dlOpName': 'slice',
             'category': 'slice_join',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'begin', 'type': 'number[]' },
-                { 'start': 2, 'name': 'size', 'type': 'number[]' }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'begin', 'type': 'number[]' },
+                { 'tfInputIndex': 2, 'dlParamName': 'size', 'type': 'number[]' }
             ]
         },
         {
             'tfOpName': 'StridedSlice',
+            'dlOpName': 'stridedSlice',
             'category': 'slice_join',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'begin', 'type': 'number[]' },
-                { 'start': 2, 'name': 'end', 'type': 'number[]' },
-                { 'start': 3, 'name': 'strides', 'type': 'number[]' },
-            ],
-            'attrs': [
-                {
-                    'tfName': 'begin_mask',
-                    'name': 'beginMask',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'begin', 'type': 'number[]' },
+                { 'tfInputIndex': 2, 'dlParamName': 'end', 'type': 'number[]' },
+                { 'tfInputIndex': 3, 'dlParamName': 'strides', 'type': 'number[]' }, {
+                    'tfParamName': 'begin_mask',
+                    'dlParamName': 'beginMask',
                     'type': 'number',
                     'defaultValue': 0
                 },
                 {
-                    'tfName': 'end_mask',
-                    'name': 'endMask',
+                    'tfParamName': 'end_mask',
+                    'dlParamName': 'endMask',
                     'type': 'number',
                     'defaultValue': 0
                 },
                 {
-                    'tfName': 'new_axis_mask',
-                    'name': 'newAxisMask',
+                    'tfParamName': 'new_axis_mask',
+                    'dlParamName': 'newAxisMask',
                     'type': 'number',
                     'defaultValue': 0
                 },
                 {
-                    'tfName': 'ellipsis_mask',
-                    'name': 'ellipsisMask',
+                    'tfParamName': 'ellipsis_mask',
+                    'dlParamName': 'ellipsisMask',
                     'type': 'number',
                     'defaultValue': 0
                 },
                 {
-                    'tfName': 'shrink_axis_mask',
-                    'name': 'shrinkAxisMask',
+                    'tfParamName': 'shrink_axis_mask',
+                    'dlParamName': 'shrinkAxisMask',
                     'type': 'number',
                     'defaultValue': 0
                 }
@@ -6176,24 +6544,43 @@
         },
         {
             'tfOpName': 'Pack',
+            'dlOpName': 'stack',
             'category': 'slice_join',
-            'inputs': [
-                { 'start': 0, 'end': 0, 'name': 'tensors', 'type': 'tensors' },
-            ],
-            'attrs': [
-                { 'tfName': 'axis', 'name': 'axis', 'type': 'number', 'defaultValue': 0 }
+            'params': [
+                {
+                    'tfInputIndex': 0,
+                    'tfInputParamLength': 0,
+                    'dlParamName': 'tensors',
+                    'type': 'tensors'
+                },
+                {
+                    'tfParamName': 'axis',
+                    'dlParamName': 'axis',
+                    'type': 'number',
+                    'defaultValue': 0
+                }
             ]
         },
         {
             'tfOpName': 'Unpack',
+            'dlOpName': 'unstack',
             'category': 'slice_join',
-            'inputs': [
-                { 'start': 0, 'name': 'tensor', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'axis', 'name': 'axis', 'type': 'number', 'defaultValue': 0 }, {
-                    'tfName': 'num',
-                    'name': 'num',
+            'params': [
+                {
+                    'tfInputIndex': 0,
+                    'tfInputParamLength': 0,
+                    'dlParamName': 'tensor',
+                    'type': 'tensor'
+                },
+                {
+                    'tfParamName': 'axis',
+                    'dlParamName': 'axis',
+                    'type': 'number',
+                    'defaultValue': 0
+                },
+                {
+                    'tfParamName': 'num',
+                    'dlParamName': 'num',
                     'type': 'number',
                     'defaultValue': 0,
                     'notSupported': true
@@ -6202,68 +6589,82 @@
         },
         {
             'tfOpName': 'Tile',
+            'dlOpName': 'tile',
             'category': 'slice_join',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'reps', 'type': 'number[]' }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'reps', 'type': 'number[]' }
             ]
         },
         {
             'tfOpName': 'Split',
+            'dlOpName': 'split',
             'category': 'slice_join',
-            'inputs': [
-                { 'start': 0, 'name': 'axis', 'type': 'number', 'defaultValue': 0 },
-                { 'start': 1, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [{
-                    'tfName': 'num_split',
-                    'name': 'numOrSizeSplits',
+            'params': [
+                {
+                    'tfInputIndex': 0,
+                    'dlParamName': 'axis',
+                    'type': 'number',
+                    'defaultValue': 0
+                },
+                { 'tfInputIndex': 1, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'num_split',
+                    'dlParamName': 'numOrSizeSplits',
                     'type': 'number',
                     'defaultValue': 1
-                }]
+                }
+            ]
         },
         {
             'tfOpName': 'SplitV',
+            'dlOpName': 'split',
             'category': 'slice_join',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'numOrSizeSplits', 'type': 'number[]' },
-                { 'start': 2, 'name': 'axis', 'type': 'number', 'defaultValue': 0 }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'numOrSizeSplits', 'type': 'number[]' },
+                {
+                    'tfInputIndex': 2,
+                    'dlParamName': 'axis',
+                    'type': 'number',
+                    'defaultValue': 0
+                }
             ]
         },
         {
             'tfOpName': 'ScatterNd',
+            'dlOpName': 'scatterNd',
             'category': 'slice_join',
-            'inputs': [
-                { 'start': 0, 'name': 'indices', 'type': 'tensor' },
-                { 'start': 1, 'name': 'values', 'type': 'tensor' },
-                { 'start': 2, 'name': 'shape', 'type': 'number[]' }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'indices', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'values', 'type': 'tensor' },
+                { 'tfInputIndex': 2, 'dlParamName': 'shape', 'type': 'number[]' }
             ]
         },
         {
             'tfOpName': 'GatherNd',
+            'dlOpName': 'gatherNd',
             'category': 'slice_join',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'indices', 'type': 'tensor' }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'indices', 'type': 'tensor' }
             ]
         },
         {
             'tfOpName': 'SparseToDense',
+            'dlOpName': 'sparseToDense',
             'category': 'slice_join',
-            'inputs': [
-                { 'start': 0, 'name': 'sparseIndices', 'type': 'tensor' },
-                { 'start': 1, 'name': 'outputShape', 'type': 'number[]' },
-                { 'start': 2, 'name': 'sparseValues', 'type': 'tensor' },
-                { 'start': 3, 'name': 'defaultValue', 'type': 'tensor' },
-            ],
-            'attrs': [{
-                    'tfName': 'validate_indices',
-                    'name': 'validateIndices',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'sparseIndices', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'outputShape', 'type': 'number[]' },
+                { 'tfInputIndex': 2, 'dlParamName': 'sparseValues', 'type': 'tensor' },
+                { 'tfInputIndex': 3, 'dlParamName': 'defaultValue', 'type': 'tensor' }, {
+                    'tfParamName': 'validate_indices',
+                    'dlParamName': 'validateIndices',
                     'type': 'bool',
                     'defaultValue': false,
                     'notSupported': true
-                }]
+                }
+            ]
         }
     ];
 
@@ -6274,35 +6675,39 @@
     var json$14 = [
         {
             'tfOpName': 'FFT',
+            'dlOpName': 'fft',
             'category': 'spectral',
-            'inputs': [{ 'start': 0, 'name': 'x', 'type': 'tensor' }]
+            'params': [{ 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }]
         },
         {
             'tfOpName': 'IFFT',
+            'dlOpName': 'ifft',
             'category': 'spectral',
-            'inputs': [{ 'start': 0, 'name': 'x', 'type': 'tensor' }]
+            'params': [{ 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }]
         },
         {
             'tfOpName': 'RFFT',
+            'dlOpName': 'rfft',
             'category': 'spectral',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' }, {
-                    'start': 1,
-                    'name': 'fft_length',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfInputIndex': 1,
+                    'dlParamName': 'fft_length',
                     'type': 'number',
-                    'notSupported': true
+                    'unsupported': true
                 }
             ]
         },
         {
             'tfOpName': 'IRFFT',
+            'dlOpName': 'irfft',
             'category': 'spectral',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' }, {
-                    'start': 1,
-                    'name': 'fft_length',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfInputIndex': 1,
+                    'dlParamName': 'fft_length',
                     'type': 'number',
-                    'notSupported': true
+                    'unsupported': true
                 }
             ]
         }
@@ -6315,50 +6720,54 @@
     var json$15 = [
         {
             'tfOpName': 'Cast',
+            'dlOpName': 'cast',
             'category': 'transformation',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                {
-                    'tfName': 'SrcT',
-                    'name': 'sdtype',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'SrcT',
+                    'dlParamName': 'sdtype',
                     'type': 'dtype',
                     'notSupported': true
                 },
-                { 'tfName': 'DstT', 'name': 'dtype', 'type': 'dtype' }
+                { 'tfParamName': 'DstT', 'dlParamName': 'dtype', 'type': 'dtype' }
             ]
         },
         {
             'tfOpName': 'ExpandDims',
+            'dlOpName': 'expandDims',
             'category': 'transformation',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'axis', 'type': 'number' }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfInputIndex': 1,
+                    'tfParamNameDeprecated': 'dim',
+                    'dlParamName': 'axis',
+                    'type': 'number'
+                }
             ]
         },
         {
             'tfOpName': 'Pad',
+            'dlOpName': 'pad',
             'category': 'transformation',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'padding', 'type': 'number[]' },
-            ],
-            'attrs': [{
-                    'tfName': 'constant_value',
-                    'name': 'constantValue',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'padding', 'type': 'number[]' }, {
+                    'tfParamName': 'constant_value',
+                    'dlParamName': 'constantValue',
                     'type': 'number',
                     'defaultValue': 0
-                }]
+                }
+            ]
         },
         {
             'tfOpName': 'PadV2',
+            'dlOpName': 'pad',
             'category': 'transformation',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'padding', 'type': 'number[]' }, {
-                    'start': 2,
-                    'name': 'constantValue',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'padding', 'type': 'number[]' }, {
+                    'tfInputIndex': 2,
+                    'dlParamName': 'constantValue',
                     'type': 'number',
                     'defaultValue': 0
                 }
@@ -6366,52 +6775,61 @@
         },
         {
             'tfOpName': 'Reshape',
+            'dlOpName': 'reshape',
             'category': 'transformation',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'shape', 'type': 'number[]' }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'shape', 'type': 'number[]' }
             ]
         },
         {
             'tfOpName': 'Squeeze',
+            'dlOpName': 'squeeze',
             'category': 'transformation',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [{
-                    'tfName': 'axis',
-                    'tfDeprecatedName': 'squeeze_dims',
-                    'name': 'axis',
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'axis',
+                    'tfParamNameDeprecated': 'squeeze_dims',
+                    'dlParamName': 'axis',
                     'type': 'number[]'
-                }]
+                }
+            ]
         },
         {
             'tfOpName': 'SpaceToBatchND',
+            'dlOpName': 'spaceToBatchND',
             'category': 'transformation',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'blockShape', 'type': 'number[]' },
-                { 'start': 2, 'name': 'paddings', 'type': 'number[]' }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'blockShape', 'type': 'number[]' },
+                { 'tfInputIndex': 2, 'dlParamName': 'paddings', 'type': 'number[]' }
             ]
         },
         {
             'tfOpName': 'BatchToSpaceND',
+            'dlOpName': 'batchToSpaceND',
             'category': 'transformation',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-                { 'start': 1, 'name': 'blockShape', 'type': 'number[]' },
-                { 'start': 2, 'name': 'crops', 'type': 'number[]' }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
+                { 'tfInputIndex': 1, 'dlParamName': 'blockShape', 'type': 'number[]' },
+                { 'tfInputIndex': 2, 'dlParamName': 'crops', 'type': 'number[]' }
             ]
         },
         {
             'tfOpName': 'DepthToSpace',
+            'dlOpName': 'depthToSpace',
             'category': 'transformation',
-            'inputs': [
-                { 'start': 0, 'name': 'x', 'type': 'tensor' },
-            ],
-            'attrs': [
-                { 'tfName': 'block_size', 'name': 'blockSize', 'type': 'number' },
-                { 'tfName': 'data_format', 'name': 'dataFormat', 'type': 'string' }
+            'params': [
+                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
+                    'tfParamName': 'block_size',
+                    'dlParamName': 'blockSize',
+                    'type': 'number'
+                },
+                {
+                    'tfParamName': 'data_format',
+                    'dlParamName': 'dataFormat',
+                    'type': 'string'
+                }
             ]
         }
     ];
@@ -6502,66 +6920,56 @@
             }
             var newNode = {
                 name: node.name,
-                op: node.op,
+                op: mapper.dlOpName,
                 category: mapper.category,
                 inputNames: (node.input ||
                     []).map(function (input) { return input.startsWith('^') ? input.substr(1) : input; }),
                 inputs: [],
                 children: [],
-                inputParams: {},
-                attrParams: {}
+                params: {}
             };
-            if (!!mapper.inputs) {
-                newNode.inputParams =
-                    mapper.inputs.reduce(function (map, param) {
-                        map[param.name] = {
-                            type: param.type,
-                            inputIndexStart: param.start,
-                            inputIndexEnd: param.end
-                        };
-                        return map;
-                    }, {});
-            }
-            if (!!mapper.attrs) {
-                newNode.attrParams =
-                    mapper.attrs.reduce(function (map, param) {
-                        var type = param.type;
-                        var value = undefined;
+            if (!!mapper.params) {
+                newNode.params = mapper.params.reduce(function (map, param) {
+                    var inputIndex = param.tfInputIndex;
+                    var inputParamLength = param.tfInputParamLength;
+                    var type = param.type;
+                    var value = undefined;
+                    if (inputIndex === undefined) {
                         switch (param.type) {
                             case 'string':
-                                value = _this.getStringParam(node.attr, param.tfName, param.defaultValue);
-                                if (value === undefined && !!param.tfDeprecatedName) {
-                                    value = _this.getStringParam(node.attr, param.tfDeprecatedName, param.defaultValue);
+                                value = _this.getStringParam(node.attr, param.tfParamName, param.defaultValue);
+                                if (value === undefined && !!param.tfParamNameDeprecated) {
+                                    value = _this.getStringParam(node.attr, param.tfParamNameDeprecated, param.defaultValue);
                                 }
                                 break;
                             case 'number':
-                                value = _this.getNumberParam(node.attr, param.tfName, (param.defaultValue || 0));
-                                if (value === undefined && !!param.tfDeprecatedName) {
-                                    value = _this.getNumberParam(node.attr, param.tfDeprecatedName, param.defaultValue);
+                                value = _this.getNumberParam(node.attr, param.tfParamName, (param.defaultValue || 0));
+                                if (value === undefined && !!param.tfParamNameDeprecated) {
+                                    value = _this.getNumberParam(node.attr, param.tfParamNameDeprecated, param.defaultValue);
                                 }
                                 break;
                             case 'number[]':
-                                value = _this.getNumericArrayParam(node.attr, param.tfName, param.defaultValue);
-                                if (value === undefined && !!param.tfDeprecatedName) {
-                                    value = _this.getNumericArrayParam(node.attr, param.tfDeprecatedName, param.defaultValue);
+                                value = _this.getNumericArrayParam(node.attr, param.tfParamName, param.defaultValue);
+                                if (value === undefined && !!param.tfParamNameDeprecated) {
+                                    value = _this.getNumericArrayParam(node.attr, param.tfParamNameDeprecated, param.defaultValue);
                                 }
                                 break;
                             case 'bool':
-                                value = _this.getBoolParam(node.attr, param.tfName, param.defaultValue);
-                                if (value === undefined && !!param.tfDeprecatedName) {
-                                    value = _this.getBoolParam(node.attr, param.tfDeprecatedName, param.defaultValue);
+                                value = _this.getBoolParam(node.attr, param.tfParamName, param.defaultValue);
+                                if (value === undefined && !!param.tfParamNameDeprecated) {
+                                    value = _this.getBoolParam(node.attr, param.tfParamNameDeprecated, param.defaultValue);
                                 }
                                 break;
                             case 'shape':
-                                value = _this.getTensorShapeParam(node.attr, param.tfName, param.defaultValue);
-                                if (value === undefined && !!param.tfDeprecatedName) {
-                                    value = _this.getTensorShapeParam(node.attr, param.tfDeprecatedName, param.defaultValue);
+                                value = _this.getTensorShapeParam(node.attr, param.tfParamName, param.defaultValue);
+                                if (value === undefined && !!param.tfParamNameDeprecated) {
+                                    value = _this.getTensorShapeParam(node.attr, param.tfParamNameDeprecated, param.defaultValue);
                                 }
                                 break;
                             case 'dtype':
-                                value = _this.getDtypeParam(node.attr, param.tfName, param.defaultValue);
-                                if (value === undefined && !!param.tfDeprecatedName) {
-                                    value = _this.getDtypeParam(node.attr, param.tfDeprecatedName, param.defaultValue);
+                                value = _this.getDtypeParam(node.attr, param.tfParamName, param.defaultValue);
+                                if (value === undefined && !!param.tfParamNameDeprecated) {
+                                    value = _this.getDtypeParam(node.attr, param.tfParamNameDeprecated, param.defaultValue);
                                 }
                                 break;
                             case 'tensor':
@@ -6570,9 +6978,10 @@
                             default:
                                 throw new Error("Unsupported param type: " + param.type + " for op: " + node.op);
                         }
-                        map[param.name] = { value: value, type: type };
-                        return map;
-                    }, {});
+                    }
+                    map[param.dlParamName] = { value: value, inputIndex: inputIndex, type: type, inputParamLength: inputParamLength };
+                    return map;
+                }, {});
             }
             return newNode;
         };
@@ -6633,38 +7042,35 @@
 
     var executeOp = function (node, tensorMap, context) {
         switch (node.op) {
-            case 'BiasAdd':
-            case 'Add': {
+            case 'add': {
                 return [tfc.add(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
-            case 'AddN': {
+            case 'addN': {
                 return [tfc.addN(getParamValue('tensors', node, tensorMap, context))];
             }
-            case 'FloorMod':
-            case 'Mod':
+            case 'mod':
                 return [tfc.mod(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
-            case 'Mul':
+            case 'mul':
                 return [tfc.mul(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
-            case 'RealDiv':
-            case 'Div': {
+            case 'div': {
                 return [tfc.div(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
-            case 'FloorDiv': {
+            case 'floorDiv': {
                 return [tfc.floorDiv(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
-            case 'Sub': {
+            case 'sub': {
                 return [tfc.sub(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
-            case 'Minimum': {
+            case 'minimum': {
                 return [tfc.minimum(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
-            case 'Maximum': {
+            case 'maximum': {
                 return [tfc.maximum(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
-            case 'Pow': {
+            case 'pow': {
                 return [tfc.pow(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
-            case 'SquaredDifference': {
+            case 'squaredDifference': {
                 return [tfc.squaredDifference(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
             default:
@@ -6674,88 +7080,87 @@
 
     var executeOp$1 = function (node, tensorMap, context) {
         switch (node.op) {
-            case 'Abs':
+            case 'abs':
                 return [tfc.abs(getParamValue('x', node, tensorMap, context))];
-            case 'Acos':
+            case 'acos':
                 return [tfc.acos(getParamValue('x', node, tensorMap, context))];
-            case 'Acosh':
+            case 'acosh':
                 return [tfc.acosh(getParamValue('x', node, tensorMap, context))];
-            case 'Asin':
+            case 'asin':
                 return [tfc.asin(getParamValue('x', node, tensorMap, context))];
-            case 'Asinh':
+            case 'asinh':
                 return [tfc.asinh(getParamValue('x', node, tensorMap, context))];
-            case 'Atan':
+            case 'atan':
                 return [tfc.atan(getParamValue('x', node, tensorMap, context))];
-            case 'Atan2':
+            case 'atan2':
                 return [tfc.atan2(getParamValue('x', node, tensorMap, context), getParamValue('y', node, tensorMap, context))];
-            case 'Atanh':
+            case 'atanh':
                 return [tfc.atanh(getParamValue('x', node, tensorMap, context))];
-            case 'Ceil':
+            case 'ceil':
                 return [tfc.ceil(getParamValue('x', node, tensorMap, context))];
-            case 'Cos':
+            case 'cos':
                 return [tfc.cos(getParamValue('x', node, tensorMap, context))];
-            case 'Cosh':
+            case 'cosh':
                 return [tfc.cosh(getParamValue('x', node, tensorMap, context))];
-            case 'Elu':
+            case 'elu':
                 return [tfc.elu(getParamValue('x', node, tensorMap, context))];
-            case 'Erf':
+            case 'erf':
                 return [tfc.erf(getParamValue('x', node, tensorMap, context))];
-            case 'Exp':
+            case 'exp':
                 return [tfc.exp(getParamValue('x', node, tensorMap, context))];
-            case 'Expm1': {
+            case 'expm1': {
                 return [tfc.expm1(getParamValue('x', node, tensorMap, context))];
             }
-            case 'Floor':
+            case 'floor':
                 return [tfc.floor(getParamValue('x', node, tensorMap, context))];
-            case 'Log':
+            case 'log':
                 return [tfc.log(getParamValue('x', node, tensorMap, context))];
-            case 'Log1p': {
+            case 'log1p': {
                 return [tfc.log1p(getParamValue('x', node, tensorMap, context))];
             }
-            case 'Neg':
+            case 'neg':
                 return [tfc.neg(getParamValue('x', node, tensorMap, context))];
-            case 'Reciprocal': {
+            case 'reciprocal': {
                 return [tfc.reciprocal(getParamValue('x', node, tensorMap, context))];
             }
-            case 'Relu':
+            case 'relu':
                 return [tfc.relu(getParamValue('x', node, tensorMap, context))];
-            case 'Round': {
+            case 'round': {
                 return [tfc.round(getParamValue('x', node, tensorMap, context))];
             }
-            case 'Selu':
+            case 'selu':
                 return [tfc.selu(getParamValue('x', node, tensorMap, context))];
-            case 'Sigmoid':
+            case 'sigmoid':
                 return [tfc.sigmoid(getParamValue('x', node, tensorMap, context))];
-            case 'Sin':
+            case 'sin':
                 return [tfc.sin(getParamValue('x', node, tensorMap, context))];
-            case 'Sign': {
+            case 'sign': {
                 return [tfc.sign(getParamValue('x', node, tensorMap, context))];
             }
-            case 'Sinh': {
+            case 'sinh': {
                 return [tfc.sinh(getParamValue('x', node, tensorMap, context))];
             }
-            case 'Softplus': {
+            case 'softplus': {
                 return [tfc.softplus(getParamValue('x', node, tensorMap, context))];
             }
-            case 'Sqrt': {
+            case 'sqrt': {
                 return [tfc.sqrt(getParamValue('x', node, tensorMap, context))];
             }
-            case 'Square': {
+            case 'square': {
                 return [tfc.square(getParamValue('x', node, tensorMap, context))];
             }
-            case 'Tanh': {
+            case 'tanh': {
                 return [tfc.tanh(getParamValue('x', node, tensorMap, context))];
             }
-            case 'Tan':
+            case 'tan':
                 return [tfc.tan(getParamValue('x', node, tensorMap, context))];
-            case 'Relu6':
-            case 'ClipByValue':
+            case 'clipByValue':
                 return [tfc.clipByValue(getParamValue('x', node, tensorMap, context), getParamValue('clipValueMin', node, tensorMap, context), getParamValue('clipValueMax', node, tensorMap, context))];
-            case 'Rsqrt':
+            case 'rsqrt':
                 return [tfc.div(tfc.scalar(1.0, 'float32'), tfc.sqrt(getTensor(node.inputNames[0], tensorMap, context)))];
-            case 'Prod':
+            case 'prod':
                 return [tfc.prod(getParamValue('x', node, tensorMap, context), getParamValue('axes', node, tensorMap, context))];
-            case 'LeakyRelu':
+            case 'leakyRelu':
                 return [tfc.leakyRelu(getParamValue('x', node, tensorMap, context), getParamValue('alpha', node, tensorMap, context))];
             default:
                 throw TypeError("Node type " + node.op + " is not implemented");
@@ -6823,7 +7228,8 @@
             if (tensor.dtype !== this.dtype) {
                 throw new Error("TensorArray " + this.name + ": Could not write to TensorArray index " + index + ",\n          because the value dtype is " + tensor.dtype + ", but TensorArray dtype is " + this.dtype + ".");
             }
-            if (this.size() === 0 && this.elementShape.length === 0) {
+            if (this.size() === 0 &&
+                (!this.elementShape || this.elementShape.length === 0)) {
                 this.elementShape = tensor.shape;
             }
             this.assertShapesMatch(this.elementShape, tensor.shape, "TensorArray " + this.name + ": Could not write to TensorArray index " + index + ".");
@@ -6952,21 +7358,21 @@
                     case 0:
                         _a = node.op;
                         switch (_a) {
-                            case 'LoopCond': return [3, 1];
-                            case 'Switch': return [3, 2];
-                            case 'Merge': return [3, 4];
-                            case 'Enter': return [3, 5];
-                            case 'Exit': return [3, 6];
-                            case 'NextIteration': return [3, 7];
-                            case 'TensorArrayV3': return [3, 8];
-                            case 'TensorArrayWriteV3': return [3, 9];
-                            case 'TensorArrayReadV3': return [3, 10];
-                            case 'TensorArrayGatherV3': return [3, 11];
-                            case 'TensorArrayScatterV3': return [3, 12];
-                            case 'TensorArrayConcatV3': return [3, 13];
-                            case 'TensorArraySplitV3': return [3, 14];
-                            case 'TensorArraySizeV3': return [3, 15];
-                            case 'TensorArrayCloseV3': return [3, 16];
+                            case 'loopCond': return [3, 1];
+                            case 'switch': return [3, 2];
+                            case 'merge': return [3, 4];
+                            case 'enter': return [3, 5];
+                            case 'exit': return [3, 6];
+                            case 'nextIteration': return [3, 7];
+                            case 'tensorArray': return [3, 8];
+                            case 'tensorArrayWrite': return [3, 9];
+                            case 'tensorArrayRead': return [3, 10];
+                            case 'tensorArrayGather': return [3, 11];
+                            case 'tensorArrayScatter': return [3, 12];
+                            case 'tensorArrayConcat': return [3, 13];
+                            case 'tensorArraySplit': return [3, 14];
+                            case 'tensorArraySize': return [3, 15];
+                            case 'tensorArrayClose': return [3, 16];
                         }
                         return [3, 17];
                     case 1: return [2, [
@@ -7060,7 +7466,7 @@
 
     var executeOp$3 = function (node, tensorMap, context) {
         switch (node.op) {
-            case 'Conv1D': {
+            case 'conv1d': {
                 var stride = getParamValue('stride', node, tensorMap, context);
                 var pad = getParamValue('pad', node, tensorMap, context);
                 var dataFormat = getParamValue('dataFormat', node, tensorMap, context)
@@ -7068,7 +7474,7 @@
                 var dilation = getParamValue('dilation', node, tensorMap, context);
                 return [tfc.conv1d(getParamValue('x', node, tensorMap, context), getParamValue('filter', node, tensorMap, context), stride, pad, dataFormat, dilation)];
             }
-            case 'Conv2D': {
+            case 'conv2d': {
                 var stride = getParamValue('strides', node, tensorMap, context);
                 var pad = getParamValue('pad', node, tensorMap, context);
                 var dataFormat = getParamValue('dataFormat', node, tensorMap, context)
@@ -7076,15 +7482,13 @@
                 var dilations = getParamValue('dilations', node, tensorMap, context);
                 return [tfc.conv2d(getParamValue('x', node, tensorMap, context), getParamValue('filter', node, tensorMap, context), [stride[1], stride[2]], pad, dataFormat, [dilations[0], dilations[1]])];
             }
-            case 'Conv2DBackpropInput':
-            case 'Conv2dTranspose': {
+            case 'conv2dTranspose': {
                 var shape = getParamValue('outputShape', node, tensorMap, context);
                 var stride = getParamValue('strides', node, tensorMap, context);
                 var pad = getParamValue('pad', node, tensorMap, context);
                 return [tfc.conv2dTranspose(getParamValue('x', node, tensorMap, context), getParamValue('filter', node, tensorMap, context), shape, [stride[1], stride[2]], pad)];
             }
-            case 'DepthwiseConv2dNative':
-            case 'DepthwiseConv2d': {
+            case 'depthwiseConv2d': {
                 var stride = getParamValue('strides', node, tensorMap, context);
                 var pad = getParamValue('pad', node, tensorMap, context);
                 var dilations = getParamValue('dilations', node, tensorMap, context);
@@ -7092,13 +7496,13 @@
                     .toUpperCase();
                 return [tfc.depthwiseConv2d(getParamValue('input', node, tensorMap, context), getParamValue('filter', node, tensorMap, context), [stride[1], stride[2]], pad, dataFormat, [dilations[0], dilations[1]])];
             }
-            case 'AvgPool': {
+            case 'avgPool': {
                 var stride = getParamValue('strides', node, tensorMap, context);
                 var pad = getParamValue('pad', node, tensorMap, context);
                 var kernelSize = getParamValue('kernelSize', node, tensorMap, context);
                 return [tfc.avgPool(getParamValue('x', node, tensorMap, context), [kernelSize[1], kernelSize[2]], [stride[1], stride[2]], pad)];
             }
-            case 'MaxPool': {
+            case 'maxPool': {
                 var stride = getParamValue('strides', node, tensorMap, context);
                 var pad = getParamValue('pad', node, tensorMap, context);
                 var kernelSize = getParamValue('kernelSize', node, tensorMap, context);
@@ -7111,51 +7515,51 @@
 
     var executeOp$4 = function (node, tensorMap, context) {
         switch (node.op) {
-            case 'Fill': {
+            case 'fill': {
                 var shape = getParamValue('shape', node, tensorMap, context);
                 var dtype = getParamValue('dtype', node, tensorMap, context);
                 var value = getParamValue('value', node, tensorMap, context);
                 return [tfc.fill(shape, value, dtype)];
             }
-            case 'LinSpace': {
+            case 'linspace': {
                 var start = getParamValue('start', node, tensorMap, context);
                 var stop_1 = getParamValue('stop', node, tensorMap, context);
                 var num = getParamValue('num', node, tensorMap, context);
                 return [tfc.linspace(start, stop_1, num)];
             }
-            case 'OneHot': {
+            case 'oneHot': {
                 var indices = getParamValue('indices', node, tensorMap, context);
                 var depth = getParamValue('depth', node, tensorMap, context);
                 var onValue = getParamValue('onValue', node, tensorMap, context);
                 var offValue = getParamValue('offValue', node, tensorMap, context);
                 return [tfc.oneHot(indices, depth, onValue, offValue)];
             }
-            case 'Ones': {
+            case 'ones': {
                 return [tfc.ones(getParamValue('shape', node, tensorMap, context), getParamValue('dtype', node, tensorMap, context))];
             }
-            case 'OnesLike': {
+            case 'onesLike': {
                 return [tfc.onesLike(getParamValue('x', node, tensorMap, context))];
             }
-            case 'RandomUniform': {
+            case 'randomUniform': {
                 return [tfc.randomUniform(getParamValue('shape', node, tensorMap, context), getParamValue('minval', node, tensorMap, context), getParamValue('maxval', node, tensorMap, context), getParamValue('dtype', node, tensorMap, context))];
             }
-            case 'Range': {
+            case 'range': {
                 var start = getParamValue('start', node, tensorMap, context);
                 var stop_2 = getParamValue('stop', node, tensorMap, context);
                 var step = getParamValue('step', node, tensorMap, context);
                 return [tfc.range(start, stop_2, step, getParamValue('dtype', node, tensorMap, context))];
             }
-            case 'TruncatedNormal': {
+            case 'truncatedNormal': {
                 var shape = getParamValue('shape', node, tensorMap, context);
                 var mean = getParamValue('mean', node, tensorMap, context);
                 var stdDev = getParamValue('stdDev', node, tensorMap, context);
                 var seed = getParamValue('seed', node, tensorMap, context);
                 return [tfc.truncatedNormal(shape, mean, stdDev, getParamValue('dtype', node, tensorMap, context), seed)];
             }
-            case 'Zeros': {
+            case 'zeros': {
                 return [tfc.zeros(getParamValue('shape', node, tensorMap, context), getParamValue('dtype', node, tensorMap, context))];
             }
-            case 'ZerosLike': {
+            case 'zerosLike': {
                 return [tfc.zerosLike(getParamValue('x', node, tensorMap, context))];
             }
             default:
@@ -7171,10 +7575,9 @@
                     case 0:
                         _a = node.op;
                         switch (_a) {
-                            case 'NonMaxSuppressionV3': return [3, 1];
-                            case 'NonMaxSuppressionV2': return [3, 1];
-                            case 'Where': return [3, 3];
-                            case 'ListDiff': return [3, 5];
+                            case 'nonMaxSuppression': return [3, 1];
+                            case 'whereAsync': return [3, 3];
+                            case 'setdiff1dAsync': return [3, 5];
                         }
                         return [3, 7];
                     case 1:
@@ -7197,7 +7600,7 @@
 
     var executeOp$6 = function (node, tensorMap, context) {
         switch (node.op) {
-            case 'TopKV2': {
+            case 'topK': {
                 var x = getParamValue('x', node, tensorMap, context);
                 var k = getParamValue('k', node, tensorMap, context);
                 var sorted = getParamValue('sorted', node, tensorMap, context);
@@ -7211,35 +7614,33 @@
 
     var executeOp$7 = function (node, tensorMap, context) {
         switch (node.op) {
-            case 'Const': {
+            case 'const': {
                 return tensorMap[node.name];
             }
-            case 'PlaceholderWithDefault':
+            case 'placeholder':
                 var def = getParamValue('default', node, tensorMap, context);
                 return [getTensor(node.name, tensorMap, context) || def];
-            case 'Placeholder':
-                return [getTensor(node.name, tensorMap, context)];
-            case 'Identity':
-            case 'StopGradient':
-            case 'FakeQuantWithMinMaxVars':
+            case 'identity':
+            case 'stopGradient':
+            case 'fakeQuantWithMinMaxVars':
                 return [
                     getParamValue('x', node, tensorMap, context).clone()
                 ];
-            case 'Snapshot':
+            case 'snapshot':
                 var snapshot = getParamValue('x', node, tensorMap, context);
                 return [snapshot.clone()];
-            case 'Shape':
+            case 'shape':
                 return [tfc.tensor1d(getParamValue('x', node, tensorMap, context).shape, 'int32')];
-            case 'ShapeN':
+            case 'shapeN':
                 return getParamValue('x', node, tensorMap, context)
                     .map(function (t) { return tfc.tensor1d(t.shape); });
-            case 'Size':
+            case 'size':
                 return [tfc.scalar(getParamValue('x', node, tensorMap, context).size, 'int32')];
-            case 'Rank':
+            case 'rank':
                 return [tfc.scalar(getParamValue('x', node, tensorMap, context).rank, 'int32')];
-            case 'NoOp':
+            case 'noop':
                 return [];
-            case 'Print':
+            case 'print':
                 var input = getParamValue('x', node, tensorMap, context);
                 var data = getParamValue('data', node, tensorMap, context);
                 var message = getParamValue('message', node, tensorMap, context);
@@ -7248,7 +7649,7 @@
                     'usually used for debugging, which slows down performance.');
                 console.log(message);
                 for (var i = 0; i < data.length; i++) {
-                    console.log(Array.prototype.slice.call(data[i].dataSync()).slice(0, summarize));
+                    console.log(Array.prototype.slice.call(data[0].dataSync()).slice(0, summarize));
                 }
                 return [input];
             default:
@@ -7258,19 +7659,19 @@
 
     var executeOp$8 = function (node, tensorMap, context) {
         switch (node.op) {
-            case 'ResizeBilinear': {
+            case 'resizeBilinear': {
                 var images = getParamValue('images', node, tensorMap, context);
                 var size = getParamValue('size', node, tensorMap, context);
                 var alignCorners = getParamValue('alignCorners', node, tensorMap, context);
                 return [tfc.image.resizeBilinear(images, [size[0], size[1]], alignCorners)];
             }
-            case 'ResizeNearestNeighbor': {
+            case 'resizeNearestNeighbor': {
                 var images = getParamValue('images', node, tensorMap, context);
                 var size = getParamValue('size', node, tensorMap, context);
                 var alignCorners = getParamValue('alignCorners', node, tensorMap, context);
                 return [tfc.image.resizeNearestNeighbor(images, [size[0], size[1]], alignCorners)];
             }
-            case 'CropAndResize': {
+            case 'cropAndResize': {
                 var image = getParamValue('image', node, tensorMap, context);
                 var boxes = getParamValue('boxes', node, tensorMap, context);
                 var boxInd = getParamValue('boxInd', node, tensorMap, context);
@@ -7286,34 +7687,34 @@
 
     var executeOp$9 = function (node, tensorMap, context) {
         switch (node.op) {
-            case 'Equal': {
+            case 'equal': {
                 return [tfc.equal(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
-            case 'NotEqual': {
+            case 'notEqual': {
                 return [tfc.notEqual(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
-            case 'Greater': {
+            case 'greater': {
                 return [tfc.greater(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
-            case 'GreaterEqual': {
+            case 'greaterEqual': {
                 return [tfc.greaterEqual(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
-            case 'Less': {
+            case 'less': {
                 return [tfc.less(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
-            case 'LessEqual': {
+            case 'lessEqual': {
                 return [tfc.lessEqual(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
-            case 'LogicalAnd': {
+            case 'logicalAnd': {
                 return [tfc.logicalAnd(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
-            case 'LogicalNot': {
+            case 'logicalNot': {
                 return [tfc.logicalNot(getParamValue('a', node, tensorMap, context))];
             }
-            case 'LogicalOr': {
+            case 'logicalOr': {
                 return [tfc.logicalOr(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
-            case 'Select': {
+            case 'where': {
                 return [tfc.where(getParamValue('condition', node, tensorMap, context), getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
             default:
@@ -7323,10 +7724,9 @@
 
     var executeOp$10 = function (node, tensorMap, context) {
         switch (node.op) {
-            case 'BatchMatMul':
-            case 'MatMul':
+            case 'matMul':
                 return [tfc.matMul(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context), getParamValue('transposeA', node, tensorMap, context), getParamValue('transposeB', node, tensorMap, context))];
-            case 'Transpose':
+            case 'transpose':
                 return [tfc.transpose(getParamValue('x', node, tensorMap, context), getParamValue('perm', node, tensorMap, context))];
             default:
                 throw TypeError("Node type " + node.op + " is not implemented");
@@ -7335,20 +7735,19 @@
 
     var executeOp$11 = function (node, tensorMap, context) {
         switch (node.op) {
-            case 'FusedBatchNorm':
-            case 'FusedBatchNormV2': {
+            case 'batchNormalization': {
                 return [tfc.batchNormalization(getParamValue('x', node, tensorMap, context), getParamValue('mean', node, tensorMap, context), getParamValue('variance', node, tensorMap, context), getParamValue('epsilon', node, tensorMap, context), getParamValue('scale', node, tensorMap, context), getParamValue('offset', node, tensorMap, context))];
             }
-            case 'LRN': {
+            case 'localResponseNormalization': {
                 return [tfc.localResponseNormalization(getParamValue('x', node, tensorMap, context), getParamValue('radius', node, tensorMap, context), getParamValue('bias', node, tensorMap, context), getParamValue('alpha', node, tensorMap, context), getParamValue('beta', node, tensorMap, context))];
             }
-            case 'Softmax': {
+            case 'softmax': {
                 return [tfc.softmax(getParamValue('x', node, tensorMap, context))];
             }
-            case 'LogSoftmax': {
+            case 'logSoftmax': {
                 return [tfc.logSoftmax(getParamValue('x', node, tensorMap, context))];
             }
-            case 'SparseToDense': {
+            case 'sparseToDense': {
                 return [tfc.sparseToDense(getParamValue('sparseIndices', node, tensorMap, context), getParamValue('outputShape', node, tensorMap, context), getParamValue('sparseValues', node, tensorMap, context), getParamValue('defaultValue', node, tensorMap, context))];
             }
             default:
@@ -7358,45 +7757,45 @@
 
     var executeOp$12 = function (node, tensorMap, context) {
         switch (node.op) {
-            case 'Max': {
+            case 'max': {
                 var axis = getParamValue('axis', node, tensorMap, context);
                 var keepDims = getParamValue('keepDims', node, tensorMap, context);
                 return [tfc.max(getParamValue('x', node, tensorMap, context), axis, keepDims)];
             }
-            case 'Mean': {
+            case 'mean': {
                 var axis = getParamValue('axis', node, tensorMap, context);
                 var keepDims = getParamValue('keepDims', node, tensorMap, context);
                 return [tfc.mean(getParamValue('x', node, tensorMap, context), axis, keepDims)];
             }
-            case 'Min': {
+            case 'min': {
                 var axis = getParamValue('axis', node, tensorMap, context);
                 var keepDims = getParamValue('keepDims', node, tensorMap, context);
                 return [tfc.min(getParamValue('x', node, tensorMap, context), axis, keepDims)];
             }
-            case 'Sum': {
+            case 'sum': {
                 var axis = getParamValue('axis', node, tensorMap, context);
                 var keepDims = getParamValue('keepDims', node, tensorMap, context);
                 return [tfc.sum(getParamValue('x', node, tensorMap, context), axis, keepDims)];
             }
-            case 'All': {
+            case 'all': {
                 var axis = getParamValue('axis', node, tensorMap, context);
                 var keepDims = getParamValue('keepDims', node, tensorMap, context);
                 return [tfc.all(getParamValue('x', node, tensorMap, context), axis, keepDims)];
             }
-            case 'Any': {
+            case 'any': {
                 var axis = getParamValue('axis', node, tensorMap, context);
                 var keepDims = getParamValue('keepDims', node, tensorMap, context);
                 return [tfc.any(getParamValue('x', node, tensorMap, context), axis, keepDims)];
             }
-            case 'ArgMax': {
+            case 'argMax': {
                 var axis = getParamValue('axis', node, tensorMap, context);
                 return [tfc.argMax(getParamValue('x', node, tensorMap, context), axis)];
             }
-            case 'ArgMin': {
+            case 'argMin': {
                 var axis = getParamValue('axis', node, tensorMap, context);
                 return [tfc.argMin(getParamValue('x', node, tensorMap, context), axis)];
             }
-            case 'Prod': {
+            case 'prod': {
                 var axis = getParamValue('axis', node, tensorMap, context);
                 var keepDims = getParamValue('keepDims', node, tensorMap, context);
                 return [tfc.prod(getParamValue('x', node, tensorMap, context), axis, keepDims)];
@@ -7408,31 +7807,28 @@
 
     var executeOp$13 = function (node, tensorMap, context) {
         switch (node.op) {
-            case 'ConcatV2':
-            case 'Concat': {
+            case 'concat': {
                 var axis = getParamValue('axis', node, tensorMap, context);
                 var inputs = getParamValue('tensors', node, tensorMap, context);
                 return [tfc.concat(inputs, axis)];
             }
-            case 'GatherV2':
-            case 'Gather': {
+            case 'gather': {
                 var axis = getParamValue('axis', node, tensorMap, context);
                 var input = getParamValue('x', node, tensorMap, context);
                 var indices = getParamValue('indices', node, tensorMap, context);
                 return [tfc.gather(input, indices, axis)];
             }
-            case 'ReverseV2':
-            case 'Reverse': {
+            case 'reverse': {
                 var axis = getParamValue('axis', node, tensorMap, context);
                 var input = getParamValue('x', node, tensorMap, context);
                 return [tfc.reverse(input, axis)];
             }
-            case 'Slice': {
+            case 'slice': {
                 var begin = getParamValue('begin', node, tensorMap, context);
                 var size = getParamValue('size', node, tensorMap, context);
                 return [tfc.slice(getParamValue('x', node, tensorMap, context), begin, size)];
             }
-            case 'StridedSlice': {
+            case 'stridedSlice': {
                 var begin = getParamValue('begin', node, tensorMap, context);
                 var end = getParamValue('end', node, tensorMap, context);
                 var strides = getParamValue('strides', node, tensorMap, context);
@@ -7451,7 +7847,7 @@
                 }
                 return [tfc.stridedSlice(tensor, begin, end, strides, beginMask, endMask, ellipsisMask, newAxisMask, shrinkAxisMask)];
             }
-            case 'Pack': {
+            case 'stack': {
                 return tfc.tidy(function () {
                     var axis = getParamValue('axis', node, tensorMap, context);
                     var tensors = getParamValue('tensors', node, tensorMap, context);
@@ -7468,35 +7864,34 @@
                     return [tfc.stack(mapped, axis)];
                 });
             }
-            case 'Unpack': {
+            case 'unstack': {
                 return tfc.tidy(function () {
                     var axis = getParamValue('axis', node, tensorMap, context);
                     var tensor = getParamValue('tensor', node, tensorMap, context);
                     return tfc.unstack(tensor, axis);
                 });
             }
-            case 'Tile': {
+            case 'tile': {
                 var reps = getParamValue('reps', node, tensorMap, context);
                 return [tfc.tile(getParamValue('x', node, tensorMap, context), reps)];
             }
-            case 'Split':
-            case 'SplitV': {
+            case 'split': {
                 var axis = getParamValue('axis', node, tensorMap, context);
                 var numOrSizeSplits = getParamValue('numOrSizeSplits', node, tensorMap, context);
                 return tfc.split(getParamValue('x', node, tensorMap, context), numOrSizeSplits, axis);
             }
-            case 'ScatterNd': {
+            case 'scatterNd': {
                 var indices = getParamValue('indices', node, tensorMap, context);
                 var values = getParamValue('values', node, tensorMap, context);
                 var shape = getParamValue('shape', node, tensorMap, context);
                 return [tfc.scatterND(indices, values, shape)];
             }
-            case 'GatherNd': {
+            case 'gatherNd': {
                 var x = getParamValue('x', node, tensorMap, context);
                 var indices = getParamValue('indices', node, tensorMap, context);
                 return [tfc.gatherND(x, indices)];
             }
-            case 'SparseToDense': {
+            case 'sparseToDense': {
                 var indices = getParamValue('sparseIndices', node, tensorMap, context);
                 var shape = getParamValue('outputShape', node, tensorMap, context);
                 var sparseValues = getParamValue('sparseValues', node, tensorMap, context);
@@ -7510,16 +7905,16 @@
 
     var executeOp$14 = function (node, tensorMap, context) {
         switch (node.op) {
-            case 'FFT': {
+            case 'fft': {
                 return [tfc.fft(getParamValue('x', node, tensorMap, context))];
             }
-            case 'IFFT': {
+            case 'ifft': {
                 return [tfc.ifft(getParamValue('x', node, tensorMap, context))];
             }
-            case 'RFFT': {
+            case 'rfft': {
                 return [tfc.rfft(getParamValue('x', node, tensorMap, context))];
             }
-            case 'IRFFT': {
+            case 'irfft': {
                 return [tfc.irfft(getParamValue('x', node, tensorMap, context))];
             }
             default:
@@ -7529,35 +7924,34 @@
 
     var executeOp$15 = function (node, tensorMap, context) {
         switch (node.op) {
-            case 'Cast': {
+            case 'cast': {
                 return [tfc.cast(getParamValue('x', node, tensorMap, context), getParamValue('dtype', node, tensorMap, context))];
             }
-            case 'ExpandDims': {
+            case 'expandDims': {
                 var axis = getParamValue('axis', node, tensorMap, context);
                 return [tfc.expandDims(getParamValue('x', node, tensorMap, context), axis)];
             }
-            case 'Squeeze': {
+            case 'squeeze': {
                 var axis = getParamValue('axis', node, tensorMap, context);
                 return [tfc.squeeze(getParamValue('x', node, tensorMap, context), axis)];
             }
-            case 'Reshape': {
+            case 'reshape': {
                 return [tfc.reshape(getParamValue('x', node, tensorMap, context), getParamValue('shape', node, tensorMap, context))];
             }
-            case 'PadV2':
-            case 'Pad': {
+            case 'pad': {
                 return [tfc.pad(getParamValue('x', node, tensorMap, context), split(getParamValue('padding', node, tensorMap, context), 2), getParamValue('constantValue', node, tensorMap, context))];
             }
-            case 'SpaceToBatchND': {
+            case 'spaceToBatchND': {
                 var blockShape = getParamValue('blockShape', node, tensorMap, context);
                 var paddings = split(getParamValue('paddings', node, tensorMap, context), 2);
                 return [tfc.spaceToBatchND(getParamValue('x', node, tensorMap, context), blockShape, paddings)];
             }
-            case 'BatchToSpaceND': {
+            case 'batchToSpaceND': {
                 var blockShape = getParamValue('blockShape', node, tensorMap, context);
                 var crops = split(getParamValue('crops', node, tensorMap, context), 2);
                 return [tfc.batchToSpaceND(getParamValue('x', node, tensorMap, context), blockShape, crops)];
             }
-            case 'DepthToSpace': {
+            case 'depthToSpace': {
                 var blockSize = getParamValue('blockSize', node, tensorMap, context);
                 var dataFormat = getParamValue('dataFormat', node, tensorMap, context).toUpperCase();
                 return [tfc.depthToSpace(getParamValue('x', node, tensorMap, context), blockSize, dataFormat)];
@@ -7568,48 +7962,42 @@
     };
 
     function executeOp$16(node, tensorMap, context) {
-        var value = (function (node, tensorMap, context) {
-            switch (node.category) {
-                case 'arithmetic':
-                    return executeOp(node, tensorMap, context);
-                case 'basic_math':
-                    return executeOp$1(node, tensorMap, context);
-                case 'control':
-                    return executeOp$2(node, tensorMap, context);
-                case 'convolution':
-                    return executeOp$3(node, tensorMap, context);
-                case 'creation':
-                    return executeOp$4(node, tensorMap, context);
-                case 'dynamic':
-                    return executeOp$5(node, tensorMap, context);
-                case 'evaluation':
-                    return executeOp$6(node, tensorMap, context);
-                case 'image':
-                    return executeOp$8(node, tensorMap, context);
-                case 'graph':
-                    return executeOp$7(node, tensorMap, context);
-                case 'logical':
-                    return executeOp$9(node, tensorMap, context);
-                case 'matrices':
-                    return executeOp$10(node, tensorMap, context);
-                case 'normalization':
-                    return executeOp$11(node, tensorMap, context);
-                case 'reduction':
-                    return executeOp$12(node, tensorMap, context);
-                case 'slice_join':
-                    return executeOp$13(node, tensorMap, context);
-                case 'spectral':
-                    return executeOp$14(node, tensorMap, context);
-                case 'transformation':
-                    return executeOp$15(node, tensorMap, context);
-                default:
-                    throw TypeError("Node type " + node.op + " is not implemented");
-            }
-        })(node, tensorMap, context);
-        if (value instanceof Promise) {
-            return value.then(function (data) { return [].concat(data); });
+        switch (node.category) {
+            case 'arithmetic':
+                return executeOp(node, tensorMap, context);
+            case 'basic_math':
+                return executeOp$1(node, tensorMap, context);
+            case 'control':
+                return executeOp$2(node, tensorMap, context);
+            case 'convolution':
+                return executeOp$3(node, tensorMap, context);
+            case 'creation':
+                return executeOp$4(node, tensorMap, context);
+            case 'dynamic':
+                return executeOp$5(node, tensorMap, context);
+            case 'evaluation':
+                return executeOp$6(node, tensorMap, context);
+            case 'image':
+                return executeOp$8(node, tensorMap, context);
+            case 'graph':
+                return executeOp$7(node, tensorMap, context);
+            case 'logical':
+                return executeOp$9(node, tensorMap, context);
+            case 'matrices':
+                return executeOp$10(node, tensorMap, context);
+            case 'normalization':
+                return executeOp$11(node, tensorMap, context);
+            case 'reduction':
+                return executeOp$12(node, tensorMap, context);
+            case 'slice_join':
+                return executeOp$13(node, tensorMap, context);
+            case 'spectral':
+                return executeOp$14(node, tensorMap, context);
+            case 'transformation':
+                return executeOp$15(node, tensorMap, context);
+            default:
+                throw TypeError("Node type " + node.op + " is not implemented");
         }
-        return [].concat(value);
     }
 
     var ExecutionContext = (function () {
@@ -7740,11 +8128,9 @@
                 return this.placeholders.map(function (node) {
                     return {
                         name: node.name,
-                        shape: node.attrParams['shape'] ?
-                            node.attrParams['shape'].value :
+                        shape: node.params['shape'] ? node.params['shape'].value :
                             undefined,
-                        dtype: node.attrParams['dtype'] ?
-                            node.attrParams['dtype'].value :
+                        dtype: node.params['dtype'] ? node.params['dtype'].value :
                             undefined
                     };
                 });
@@ -7757,11 +8143,9 @@
                 return this._outputs.map(function (node) {
                     return {
                         name: node.name,
-                        shape: node.attrParams['shape'] ?
-                            node.attrParams['shape'].value :
+                        shape: node.params['shape'] ? node.params['shape'].value :
                             undefined,
-                        dtype: node.attrParams['dtype'] ?
-                            node.attrParams['dtype'].value :
+                        dtype: node.params['dtype'] ? node.params['dtype'].value :
                             undefined
                     };
                 });
@@ -7912,16 +8296,22 @@
                             outputIds = Object.keys(results).map(function (key) { return results[key].id; });
                             inputIdArray = Object.keys(inputs).map(function (key) { return inputs[key].map(function (input) { return input.id; }); });
                             inputIds = [].concat.apply([], inputIdArray);
+                            var count = 0;
+                            console.log(tf.memory().numTensors);
                             Object.keys(tensors).forEach(function (key) {
                                 var tensorArray = tensors[key];
                                 tensorArray.forEach(function (tensor) {
-                                    if (tensor && outputIds.indexOf(tensor.id) === -1 &&
+                                    if (tensor && !tensor.isDisposed &&
+                                        outputIds.indexOf(tensor.id) === -1 &&
                                         inputIds.indexOf(tensor.id) === -1 &&
                                         _this.weightIds.indexOf(tensor.id) === -1) {
                                         tensor.dispose();
+                                        count ++;
                                     }
-                                });
+                                });                                
                             });
+                            console.log(count);
+                            console.log(tf.memory().numTensors);
                             return [2, results];
                     }
                 });
@@ -8045,14 +8435,14 @@
                     return;
                 }
                 var input = inputTensors[0];
-                if (node.attrParams['shape'] && node.attrParams['shape'].value) {
-                    var shape_1 = node.attrParams['shape'].value;
+                if (node.params['shape'] && node.params['shape'].value) {
+                    var shape_1 = node.params['shape'].value;
                     var match = shape_1.length === input.shape.length &&
                         input.shape.every(function (dim, index) { return shape_1[index] === -1 || shape_1[index] === dim; });
                     tfc.util.assert(match, "The shape of dict['" + node.name + "'] provided in model.execute(dict) must be [" + shape_1 + "], but was [" + input.shape + "]");
                 }
-                if (node.attrParams['dtype'] && node.attrParams['dtype'].value) {
-                    tfc.util.assert(input.dtype === node.attrParams['dtype'].value, "The dtype of dict['" + node.name + "'] provided in model.execute(dict) must be " + node.attrParams['dtype'].value + ", but was " + input.dtype);
+                if (node.params['dtype'] && node.params['dtype'].value) {
+                    tfc.util.assert(input.dtype === node.params['dtype'].value, "The dtype of dict['" + node.name + "'] provided in model.execute(dict) must be " + node.params['dtype'].value + ", but was " + input.dtype);
                 }
             });
         };
@@ -8642,66 +9032,56 @@
             }
             var newNode = {
                 name: node.name,
-                op: node.op,
+                op: mapper.dlOpName,
                 category: mapper.category,
                 inputNames: (node.input ||
                     []).map(function (input) { return input.startsWith('^') ? input.substr(1) : input; }),
                 inputs: [],
                 children: [],
-                inputParams: {},
-                attrParams: {}
+                params: {}
             };
-            if (!!mapper.inputs) {
-                newNode.inputParams =
-                    mapper.inputs.reduce(function (map, param) {
-                        map[param.name] = {
-                            type: param.type,
-                            inputIndexStart: param.start,
-                            inputIndexEnd: param.end
-                        };
-                        return map;
-                    }, {});
-            }
-            if (!!mapper.attrs) {
-                newNode.attrParams =
-                    mapper.attrs.reduce(function (map, param) {
-                        var type = param.type;
-                        var value = undefined;
+            if (!!mapper.params) {
+                newNode.params = mapper.params.reduce(function (map, param) {
+                    var inputIndex = param.tfInputIndex;
+                    var inputParamLength = param.tfInputParamLength;
+                    var type = param.type;
+                    var value = undefined;
+                    if (inputIndex === undefined) {
                         switch (param.type) {
                             case 'string':
-                                value = _this.getStringParam(node.attr, param.tfName, param.defaultValue);
-                                if (value === undefined && !!param.tfDeprecatedName) {
-                                    value = _this.getStringParam(node.attr, param.tfDeprecatedName, param.defaultValue);
+                                value = _this.getStringParam(node.attr, param.tfParamName, param.defaultValue);
+                                if (value === undefined && !!param.tfParamNameDeprecated) {
+                                    value = _this.getStringParam(node.attr, param.tfParamNameDeprecated, param.defaultValue);
                                 }
                                 break;
                             case 'number':
-                                value = _this.getNumberParam(node.attr, param.tfName, (param.defaultValue || 0));
-                                if (value === undefined && !!param.tfDeprecatedName) {
-                                    value = _this.getNumberParam(node.attr, param.tfDeprecatedName, param.defaultValue);
+                                value = _this.getNumberParam(node.attr, param.tfParamName, (param.defaultValue || 0));
+                                if (value === undefined && !!param.tfParamNameDeprecated) {
+                                    value = _this.getNumberParam(node.attr, param.tfParamNameDeprecated, param.defaultValue);
                                 }
                                 break;
                             case 'number[]':
-                                value = _this.getNumericArrayParam(node.attr, param.tfName, param.defaultValue);
-                                if (value === undefined && !!param.tfDeprecatedName) {
-                                    value = _this.getNumericArrayParam(node.attr, param.tfDeprecatedName, param.defaultValue);
+                                value = _this.getNumericArrayParam(node.attr, param.tfParamName, param.defaultValue);
+                                if (value === undefined && !!param.tfParamNameDeprecated) {
+                                    value = _this.getNumericArrayParam(node.attr, param.tfParamNameDeprecated, param.defaultValue);
                                 }
                                 break;
                             case 'bool':
-                                value = _this.getBoolParam(node.attr, param.tfName, param.defaultValue);
-                                if (value === undefined && !!param.tfDeprecatedName) {
-                                    value = _this.getBoolParam(node.attr, param.tfDeprecatedName, param.defaultValue);
+                                value = _this.getBoolParam(node.attr, param.tfParamName, param.defaultValue);
+                                if (value === undefined && !!param.tfParamNameDeprecated) {
+                                    value = _this.getBoolParam(node.attr, param.tfParamNameDeprecated, param.defaultValue);
                                 }
                                 break;
                             case 'shape':
-                                value = _this.getTensorShapeParam(node.attr, param.tfName, param.defaultValue);
-                                if (value === undefined && !!param.tfDeprecatedName) {
-                                    value = _this.getTensorShapeParam(node.attr, param.tfDeprecatedName, param.defaultValue);
+                                value = _this.getTensorShapeParam(node.attr, param.tfParamName, param.defaultValue);
+                                if (value === undefined && !!param.tfParamNameDeprecated) {
+                                    value = _this.getTensorShapeParam(node.attr, param.tfParamNameDeprecated, param.defaultValue);
                                 }
                                 break;
                             case 'dtype':
-                                value = _this.getDtypeParam(node.attr, param.tfName, param.defaultValue);
-                                if (value === undefined && !!param.tfDeprecatedName) {
-                                    value = _this.getDtypeParam(node.attr, param.tfDeprecatedName, param.defaultValue);
+                                value = _this.getDtypeParam(node.attr, param.tfParamName, param.defaultValue);
+                                if (value === undefined && !!param.tfParamNameDeprecated) {
+                                    value = _this.getDtypeParam(node.attr, param.tfParamNameDeprecated, param.defaultValue);
                                 }
                                 break;
                             case 'tensor':
@@ -8710,9 +9090,10 @@
                             default:
                                 throw new Error("Unsupported param type: " + param.type + " for op: " + node.op);
                         }
-                        map[param.name] = { value: value, type: type };
-                        return map;
-                    }, {});
+                    }
+                    map[param.dlParamName] = { value: value, inputIndex: inputIndex, type: type, inputParamLength: inputParamLength };
+                    return map;
+                }, {});
             }
             return newNode;
         };
@@ -8761,9 +9142,14 @@
         OperationMapper.prototype.getTensorShapeParam = function (attrs, name, def) {
             var param = attrs[name];
             if (param && param.shape) {
-                return param.shape.dim.map(function (dim) { return (typeof dim.size === 'number') ?
-                    dim.size :
-                    parseInt(dim.size, 10); });
+                if (param.shape.unknownRank) {
+                    return undefined;
+                }
+                if (param.shape.dim) {
+                    return param.shape.dim.map(function (dim) { return (typeof dim.size === 'number') ?
+                        dim.size :
+                        parseInt(dim.size, 10); });
+                }
             }
             return def;
         };
@@ -8959,7 +9345,7 @@
         });
     }
 
-    var version = '0.7.2';
+    var version = '0.8.0';
 
     function loadFrozenModel$2(modelUrl, weightsManifestUrl, requestOption) {
         if (modelUrl && modelUrl.endsWith('.json')) {

@@ -15,36 +15,38 @@
  * =============================================================================
  */
 
-import * as tf from '@tensorflow/tfjs';
-const GOOGLE_CLOUD_STORAGE_DIR =
-    'https://storage.googleapis.com/tfjs-models/savedmodel/';
-const MODEL_FILE_URL = 'nested_loop/tensorflowjs_model.pb';
-const WEIGHT_MANIFEST_FILE_URL = 'nested_loop/weights_manifest.json';
+const MODEL_FILE_URL = 'loop_model/tensorflowjs_model.pb';
+const WEIGHT_MANIFEST_FILE_URL = 'loop_model/weights_manifest.json';
+const JSON_MODEL_FILE_URL = 'json_loop_model/model.json';
 const OUTPUT_NODE_NAME = 'Add';
 
-export class LoopModel {
+class LoopModel {
   constructor() {}
 
   async load() {
-    this.model = await tf.loadFrozenModel(
-      GOOGLE_CLOUD_STORAGE_DIR + MODEL_FILE_URL,
-      GOOGLE_CLOUD_STORAGE_DIR + WEIGHT_MANIFEST_FILE_URL);
+    this.model =
+        await tf.loadGraphModel(MODEL_FILE_URL);
+    this.jsonModel = await tf.loadGraphModel(JSON_MODEL_FILE_URL);
   }
 
   dispose() {
     if (this.model) {
       this.model.dispose();
     }
+    if (this.jsonModel) {
+      this.jsonModel.dispose();
+    }
   }
 
-  async predict(init, loop, loop2, inc) {
+  async predict(init, loop, loop2, inc, jsonModel) {
     const dict = {
       'init': tf.scalar(init, 'int32'),
       'times': tf.scalar(loop, 'int32'),
       'times2': tf.scalar(loop2, 'int32'),
       'inc': tf.scalar(inc, 'int32')
     };
-    return this.model.executeAsync(dict, OUTPUT_NODE_NAME);
+    return jsonModel ? this.model.executeAsync(dict, OUTPUT_NODE_NAME) :
+                       this.jsonModel.executeAsync(dict, OUTPUT_NODE_NAME);
   }
 }
 
@@ -61,14 +63,16 @@ window.onload = async () => {
 
   const runBtn = document.getElementById('run');
   runBtn.onclick = async () => {
-    const init = document.getElementById('init').value;
-    const loop = document.getElementById('loop').value;
-    const loop2 = document.getElementById('loop2').value;
-    const inc = document.getElementById('inc').value;
+    const init = parseInt(document.getElementById('init').value);
+    const loop = parseInt(document.getElementById('loop').value);
+    const loop2 = parseInt(document.getElementById('loop2').value);
+    const inc = parseInt(document.getElementById('inc').value);
     console.time('prediction');
     const result = await loopModel.predict(init, loop, loop2, inc);
+    const jsonResult = await loopModel.predict(init, loop, loop2, inc, true);
     console.timeEnd('prediction');
 
-    resultElement.innerText = "oupput = " + result.dataSync()[0];
+    resultElement.innerText = 'pb output = ' + result.dataSync()[0];
+    resultElement.innerText += ' json output = ' + jsonResult.dataSync()[0];
   };
 };

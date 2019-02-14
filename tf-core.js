@@ -14,6 +14,7 @@
  * limitations under the License.
  * =============================================================================
  */
+var __tensors = {};
 (function (global, factory) {
     typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
     typeof define === 'function' && define.amd ? define(['exports'], factory) :
@@ -2073,6 +2074,7 @@
                 this.tensorInfo.get(a.dataId).refCount :
                 0;
             this.numTensors++;
+            __tensors[a.id] = a.dataId;
             if (a.dtype === 'string') {
                 this.numStringTensors++;
             }
@@ -2112,6 +2114,7 @@
             if (!this.tensorInfo.has(a.dataId)) {
                 return;
             }
+            delete __tensors[a.id];
             if (this.keepTensors.has(a.id)) {
                 this.keepTensors.delete(a.id);
             }

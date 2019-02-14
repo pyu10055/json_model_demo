@@ -1076,7 +1076,7 @@
 
     console.log('pb model ...');
     console.time('loading');
-    const mobileNetPb = await tf.loadFrozenModel(MODEL_URL_PB, WEIGHTS_URL_PB);
+    const mobileNetPb = await tf.loadGraphModel(MODEL_URL_PB);
     console.timeEnd('loading');
 
     const profilePb = await tf.profile(() => {
@@ -1099,7 +1099,7 @@
 
     console.log('json model ...');
     console.time('loading');
-    const mobileNet = await tf.loadFrozenModel(MODEL_URL);
+    const mobileNet = await tf.loadGraphModel(MODEL_URL);
     console.timeEnd('loading');
     const profile = await tf.profile(() => {
       console.time('First prediction');

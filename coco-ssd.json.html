@@ -43,7 +43,7 @@
 
   window.onload = () => {
     modelPromise =
-    tf.loadFrozenModel(JSON_MODEL_URL); //, undefined, [new tf.DeviceAllocationOptimizer('webgl', true)]);
+    tf.loadGraphModel(JSON_MODEL_URL); //, undefined, [new tf.DeviceAllocationOptimizer('webgl', true)]);
   }
   const button = document.getElementById('toggle');
   button.onclick = () => {

@@ -4396,26 +4396,50 @@
     var compiled_api = $root;
     var compiled_api_1 = compiled_api.tensorflow;
 
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     function getParamValue(paramName, node, tensorMap, context) {
-        var param = node.params[paramName];
-        if (param && param.inputIndex !== undefined) {
-            if (param.type === 'tensor') {
-                return getTensor(node.inputNames[param.inputIndex], tensorMap, context);
+        var inputParam = node.inputParams[paramName];
+        if (inputParam && inputParam.inputIndexStart !== undefined) {
+            var start = inputParam.inputIndexStart;
+            var end = inputParam.inputIndexEnd === 0 ?
+                undefined :
+                (inputParam.inputIndexEnd === undefined ? start + 1 :
+                    inputParam.inputIndexEnd);
+            if (inputParam.type === 'tensor') {
+                return getTensor(node.inputNames[inputParam.inputIndexStart], tensorMap, context);
             }
-            if (param.type === 'tensors') {
-                var inputs = param.inputIndex === 0 ?
-                    (param.inputParamLength === 0 ?
-                        node.inputNames :
-                        node.inputNames.slice(param.inputIndex, -param.inputParamLength)) :
-                    node.inputNames.splice(param.inputIndex);
+            if (inputParam.type === 'tensors') {
+                var inputs = node.inputNames.slice(start, end);
                 return inputs.map(function (name) { return getTensor(name, tensorMap, context); });
             }
-            var data = Array.prototype.slice.call(getTensor(node.inputNames.slice(param.inputIndex)[0], tensorMap, context)
+            var data = Array.prototype.slice.call(getTensor(node.inputNames.slice(start)[0], tensorMap, context)
                 .dataSync());
-            return param.type === 'number' ? data[0] : data;
+            return inputParam.type === 'number' ? data[0] : data;
         }
-        return param && param.value;
+        var attrParam = node.attrParams[paramName];
+        return attrParam && attrParam.value;
     }
+    /**
+     * Retrieve the tensor based on input name by extracting the node name and
+     * output index information.
+     * @param name Node input name
+     * @param tensorsMap Tensors map keyed by the node
+     */
     function getTensor(name, tensorsMap, context) {
         var _a = parseNodeName(name), nodeName = _a[0], index = _a[1];
         var contextId = context.currentContextIds.find(function (contextId) {
@@ -4425,9 +4449,20 @@
             tensorsMap[getNodeNameWithContextId(nodeName, contextId)][index] :
             undefined;
     }
+    /**
+     * Retrieve the tensors based on input name for current context.
+     * @param name Node input name
+     * @param tensorsMap Tensors map keyed by the node
+     */
     function getTensorsForCurrentContenxt(name, tensorsMap, context) {
         return tensorsMap[getNodeNameWithContextId(name, context.currentContextId)];
     }
+    /**
+     * Returns the node name and index from the Node input name.
+     * @param inputName The input name of the node, in format of
+     * node_name:output_index, i.e. MatMul:0, if the output_index is not set, it is
+     * default to 0.
+     */
     function getNodeNameAndIndex(inputName, context) {
         var _a = parseNodeName(inputName), nodeName = _a[0], index = _a[1];
         return [
@@ -4453,189 +4488,167 @@
         return res;
     }
 
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     var json = [
         {
             'tfOpName': 'Add',
-            'dlOpName': 'add',
             'category': 'arithmetic',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'a', 'type': 'tensor' },
+                { 'start': 1, 'name': 'b', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'AddN',
-            'dlOpName': 'addN',
             'category': 'arithmetic',
-            'params': [{
-                    'tfInputIndex': 0,
-                    'tfInputParamLength': 0,
-                    'dlParamName': 'tensors',
-                    'type': 'tensors'
-                }]
+            'inputs': [{ 'start': 0, 'end': 0, 'name': 'tensors', 'type': 'tensors' }]
         },
         {
             'tfOpName': 'BiasAdd',
-            'dlOpName': 'add',
             'category': 'arithmetic',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'a', 'type': 'tensor' },
+                { 'start': 1, 'name': 'b', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Sub',
-            'dlOpName': 'sub',
             'category': 'arithmetic',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'a', 'type': 'tensor' },
+                { 'start': 1, 'name': 'b', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'RealDiv',
-            'dlOpName': 'div',
             'category': 'arithmetic',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'a', 'type': 'tensor' },
+                { 'start': 1, 'name': 'b', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Div',
-            'dlOpName': 'div',
             'category': 'arithmetic',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'a', 'type': 'tensor' },
+                { 'start': 1, 'name': 'b', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'FloorDiv',
-            'dlOpName': 'floorDiv',
             'category': 'arithmetic',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'a', 'type': 'tensor' },
+                { 'start': 1, 'name': 'b', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Mul',
-            'dlOpName': 'mul',
             'category': 'arithmetic',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'a', 'type': 'tensor' },
+                { 'start': 1, 'name': 'b', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Maximum',
-            'dlOpName': 'maximum',
             'category': 'arithmetic',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }
+            'inputs': [
+                { 'start': 0, 'name': 'a', 'type': 'tensor' },
+                { 'start': 1, 'name': 'b', 'type': 'tensor' }
             ]
         },
         {
             'tfOpName': 'Minimum',
-            'dlOpName': 'minimum',
             'category': 'arithmetic',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }
+            'inputs': [
+                { 'start': 0, 'name': 'a', 'type': 'tensor' },
+                { 'start': 1, 'name': 'b', 'type': 'tensor' }
             ]
         },
         {
             'tfOpName': 'Pow',
-            'dlOpName': 'pow',
             'category': 'arithmetic',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'a', 'type': 'tensor' },
+                { 'start': 1, 'name': 'b', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'SquaredDifference',
-            'dlOpName': 'squaredDifference',
             'category': 'arithmetic',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'a', 'type': 'tensor' },
+                { 'start': 1, 'name': 'b', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Mod',
-            'dlOpName': 'mod',
             'category': 'arithmetic',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'a', 'type': 'tensor' },
+                { 'start': 1, 'name': 'b', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'FloorMod',
-            'dlOpName': 'mod',
             'category': 'arithmetic',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
+            'inputs': [
+                { 'start': 0, 'name': 'a', 'type': 'tensor' },
+                { 'start': 1, 'name': 'b', 'type': 'tensor' },
+            ],
+            'attrs': [{
+                    'tfName': 'T',
+                    'name': 'dtype',
                     'type': 'dtype',
                     'notSupported': true
-                }
-            ]
+                }]
         }
     ];
 
@@ -4643,516 +4656,419 @@
         json: json
     });
 
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     var json$1 = [
         {
             'tfOpName': 'Abs',
-            'dlOpName': 'abs',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Acos',
-            'dlOpName': 'acos',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Asin',
-            'dlOpName': 'asin',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Atan',
-            'dlOpName': 'atan',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Atan2',
-            'dlOpName': 'atan2',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'y', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'y', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Ceil',
-            'dlOpName': 'ceil',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'ClipByValue',
-            'dlOpName': 'clipByValue',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'clip_value_min',
-                    'dlParamName': 'clipValueMin',
-                    'type': 'number'
-                },
-                {
-                    'tfParamName': 'clip_value_max',
-                    'dlParamName': 'clipValueMax',
-                    'type': 'number'
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'clip_value_min', 'name': 'clipValueMin', 'type': 'number' },
+                { 'tfName': 'clip_value_max', 'name': 'clipValueMax', 'type': 'number' }
             ]
         },
         {
             'tfOpName': 'Cos',
-            'dlOpName': 'cos',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Cosh',
-            'dlOpName': 'cosh',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Elu',
-            'dlOpName': 'elu',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Exp',
-            'dlOpName': 'exp',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Floor',
-            'dlOpName': 'floor',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Log',
-            'dlOpName': 'log',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Neg',
-            'dlOpName': 'neg',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Relu',
-            'dlOpName': 'relu',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Relu6',
-            'dlOpName': 'clipByValue',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }, {
+                    'tfName': 'clipValueMin',
+                    'name': 'clipValueMin',
+                    'type': 'number',
+                    'defaultValue': 0
                 },
-                { 'dlParamName': 'clipValueMin', 'type': 'number', 'defaultValue': 0 },
-                { 'dlParamName': 'clipValueMax', 'type': 'number', 'defaultValue': 6 }
+                {
+                    'tfName': 'clipValueMax',
+                    'name': 'clipValueMax',
+                    'type': 'number',
+                    'defaultValue': 6
+                }
             ]
         },
         {
             'tfOpName': 'Selu',
-            'dlOpName': 'selu',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Sigmoid',
-            'dlOpName': 'sigmoid',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Sin',
-            'dlOpName': 'sin',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Sinh',
-            'dlOpName': 'sinh',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Sqrt',
-            'dlOpName': 'sqrt',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Rsqrt',
-            'dlOpName': 'rsqrt',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Square',
-            'dlOpName': 'square',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Tan',
-            'dlOpName': 'tan',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Tanh',
-            'dlOpName': 'tanh',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Sign',
-            'dlOpName': 'sign',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Round',
-            'dlOpName': 'round',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Expm1',
-            'dlOpName': 'expm1',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Log1p',
-            'dlOpName': 'log1p',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Reciprocal',
-            'dlOpName': 'reciprocal',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
-            ]
-        },
-        {
-            'tfOpName': 'Reciprocal',
-            'dlOpName': 'reciprocal',
-            'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Softplus',
-            'dlOpName': 'softplus',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Asinh',
-            'dlOpName': 'asinh',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Acosh',
-            'dlOpName': 'acosh',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Atanh',
-            'dlOpName': 'atanh',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Erf',
-            'dlOpName': 'erf',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Prod',
-            'dlOpName': 'prod',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'axes', 'type': 'number[]' }, {
-                    'tfParamName': 'keep_dims',
-                    'dlParamName': 'keepDims',
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'axes', 'type': 'number[]' },
+            ],
+            'attrs': [
+                {
+                    'tfName': 'keep_dims',
+                    'name': 'keepDims',
                     'type': 'bool',
                     'notSupported': true
                 },
-                {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'LeakyRelu',
-            'dlOpName': 'leakyRelu',
             'category': 'basic_math',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'alpha',
-                    'dlParamName': 'alpha',
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                {
+                    'tfName': 'alpha',
+                    'name': 'alpha',
                     'type': 'number',
                     'defaultValue': 0.2
                 },
                 {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
+                    'tfName': 'T',
+                    'name': 'dtype',
                     'type': 'dtype',
                     'notSupported': true
                 }
@@ -5164,183 +5080,155 @@
         json: json$1
     });
 
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     var json$2 = [
         {
             'tfOpName': 'LoopCond',
-            'dlOpName': 'loopCond',
             'category': 'control',
-            'params': [{ 'tfInputIndex': 0, 'dlParamName': 'pred', 'type': 'tensor' }]
+            'inputs': [{ 'start': 0, 'name': 'pred', 'type': 'tensor' }]
         },
         {
             'tfOpName': 'Switch',
-            'dlOpName': 'switch',
             'category': 'control',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'data', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'pred', 'type': 'tensor' }
+            'inputs': [
+                { 'start': 0, 'name': 'data', 'type': 'tensor' },
+                { 'start': 1, 'name': 'pred', 'type': 'tensor' }
             ]
         },
         {
             'tfOpName': 'Merge',
-            'dlOpName': 'merge',
             'category': 'control',
-            'params': [{
-                    'tfInputIndex': 0,
-                    'tfInputParamLength': 0,
-                    'dlParamName': 'tensors',
-                    'type': 'tensors'
-                }]
+            'inputs': [{ 'start': 0, 'end': 0, 'name': 'tensors', 'type': 'tensors' }]
         },
         {
             'tfOpName': 'Enter',
-            'dlOpName': 'enter',
             'category': 'control',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'tensor', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                },
-                {
-                    'tfParamName': 'frame_name',
-                    'dlParamName': 'frameName',
-                    'type': 'string'
-                },
-                {
-                    'tfParamName': 'is_constant',
-                    'dlParamName': 'isConstant',
-                    'type': 'bool'
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'tensor', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true },
+                { 'tfName': 'frame_name', 'name': 'frameName', 'type': 'string' },
+                { 'tfName': 'is_constant', 'name': 'isConstant', 'type': 'bool' }
             ]
         },
         {
             'tfOpName': 'Exit',
-            'dlOpName': 'exit',
             'category': 'control',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'tensor', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'tensor', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'NextIteration',
-            'dlOpName': 'nextIteration',
             'category': 'control',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'tensor', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'tensor', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'TensorArrayV3',
-            'dlOpName': 'tensorArray',
             'category': 'control',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'size', 'type': 'number' },
-                { 'tfParamName': 'dtype', 'dlParamName': 'dtype', 'type': 'dtype' }, {
-                    'tfParamName': 'element_shape',
-                    'dlParamName': 'elementShape',
-                    'type': 'shape'
-                },
+            'inputs': [
+                { 'start': 0, 'name': 'size', 'type': 'number' },
+            ],
+            'attrs': [
+                { 'tfName': 'dtype', 'name': 'dtype', 'type': 'dtype' },
+                { 'tfName': 'element_shape', 'name': 'elementShape', 'type': 'shape' },
+                { 'tfName': 'dynamic_size', 'name': 'dynamicSize', 'type': 'bool' },
+                { 'tfName': 'clear_after_read', 'name': 'clearAfterRead', 'type': 'bool' },
                 {
-                    'tfParamName': 'dynamic_size',
-                    'dlParamName': 'dynamicSize',
+                    'tfName': 'identical_element_shapes',
+                    'name': 'identicalElementShapes',
                     'type': 'bool'
                 },
-                {
-                    'tfParamName': 'clear_after_read',
-                    'dlParamName': 'clearAfterRead',
-                    'type': 'bool'
-                },
-                {
-                    'tfParamName': 'identical_element_shapes',
-                    'dlParamName': 'identicalElementShapes',
-                    'type': 'bool'
-                },
-                {
-                    'tfParamName': 'tensor_array_name',
-                    'dlParamName': 'name',
-                    'type': 'string'
-                }
+                { 'tfName': 'tensor_array_name', 'name': 'name', 'type': 'string' }
             ]
         },
         {
             'tfOpName': 'TensorArrayWriteV3',
-            'dlOpName': 'tensorArrayWrite',
             'category': 'control',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'tensorArrayId', 'type': 'number' },
-                { 'tfInputIndex': 1, 'dlParamName': 'index', 'type': 'number' },
-                { 'tfInputIndex': 2, 'dlParamName': 'tensor', 'type': 'tensor' },
-                { 'tfInputIndex': 3, 'dlParamName': 'flowIn', 'type': 'number' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'tensorArrayId', 'type': 'number' },
+                { 'start': 1, 'name': 'index', 'type': 'number' },
+                { 'start': 2, 'name': 'tensor', 'type': 'tensor' },
+                { 'start': 3, 'name': 'flowIn', 'type': 'number' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'TensorArrayReadV3',
-            'dlOpName': 'tensorArrayRead',
             'category': 'control',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'tensorArrayId', 'type': 'number' },
-                { 'tfInputIndex': 1, 'dlParamName': 'index', 'type': 'number' },
-                { 'tfInputIndex': 2, 'dlParamName': 'flowIn', 'type': 'number' }, {
-                    'tfParamName': 'dtype',
-                    'dlParamName': 'dtype',
+            'inputs': [
+                { 'start': 0, 'name': 'tensorArrayId', 'type': 'number' },
+                { 'start': 1, 'name': 'index', 'type': 'number' },
+                { 'start': 2, 'name': 'flowIn', 'type': 'number' },
+            ],
+            'attrs': [{
+                    'tfName': 'dtype',
+                    'name': 'dtype',
                     'type': 'dtype',
                     'notSupported': true
-                }
-            ]
+                }]
         },
         {
             'tfOpName': 'TensorArrayGatherV3',
-            'dlOpName': 'tensorArrayGather',
             'category': 'control',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'tensorArrayId', 'type': 'number' },
-                { 'tfInputIndex': 1, 'dlParamName': 'indices', 'type': 'number[]' },
-                { 'tfInputIndex': 2, 'dlParamName': 'flowIn', 'type': 'number' },
-                { 'tfParamName': 'dtype', 'dlParamName': 'dtype', 'type': 'dtype' }, {
-                    'tfParamName': 'element_shape',
-                    'dlParamName': 'elementShape',
-                    'type': 'shape'
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'tensorArrayId', 'type': 'number' },
+                { 'start': 1, 'name': 'indices', 'type': 'number[]' },
+                { 'start': 2, 'name': 'flowIn', 'type': 'number' },
+            ],
+            'attrs': [
+                { 'tfName': 'dtype', 'name': 'dtype', 'type': 'dtype' },
+                { 'tfName': 'element_shape', 'name': 'elementShape', 'type': 'shape' }
             ]
         },
         {
             'tfOpName': 'TensorArrayScatterV3',
-            'dlOpName': 'tensorArrayScatter',
             'category': 'control',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'tensorArrayId', 'type': 'number' },
-                { 'tfInputIndex': 1, 'dlParamName': 'indices', 'type': 'number[]' },
-                { 'tfInputIndex': 2, 'dlParamName': 'tensor', 'type': 'tensor' },
-                { 'tfInputIndex': 3, 'dlParamName': 'flowIn', 'type': 'number' },
-                { 'tfParamName': 'T', 'dlParamName': 'dtype', 'type': 'dtype' }
-            ]
+            'inputs': [
+                { 'start': 0, 'name': 'tensorArrayId', 'type': 'number' },
+                { 'start': 1, 'name': 'indices', 'type': 'number[]' },
+                { 'start': 2, 'name': 'tensor', 'type': 'tensor' },
+                { 'start': 3, 'name': 'flowIn', 'type': 'number' },
+            ],
+            'attrs': [{ 'tfName': 'T', 'name': 'dtype', 'type': 'dtype' }]
         },
         {
             'tfOpName': 'TensorArrayConcatV3',
-            'dlOpName': 'tensorArrayConcat',
             'category': 'control',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'tensorArrayId', 'type': 'number' },
-                { 'tfInputIndex': 1, 'dlParamName': 'flowIn', 'type': 'number' },
-                { 'tfParamName': 'dtype', 'dlParamName': 'dtype', 'type': 'dtype' }, {
-                    'tfParamName': 'element_shape_except0',
-                    'dlParamName': 'elementShapeExcept0',
+            'inputs': [
+                { 'start': 0, 'name': 'tensorArrayId', 'type': 'number' },
+                { 'start': 1, 'name': 'flowIn', 'type': 'number' },
+            ],
+            'attrs': [
+                { 'tfName': 'dtype', 'name': 'dtype', 'type': 'dtype' }, {
+                    'tfName': 'element_shape_except0',
+                    'name': 'elementShapeExcept0',
                     'type': 'shape',
                     'notSupported': true
                 }
@@ -5348,32 +5236,27 @@
         },
         {
             'tfOpName': 'TensorArraySplitV3',
-            'dlOpName': 'tensorArraySplit',
             'category': 'control',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'tensorArrayId', 'type': 'number' },
-                { 'tfInputIndex': 1, 'dlParamName': 'tensor', 'type': 'tensor' },
-                { 'tfInputIndex': 2, 'dlParamName': 'lengths', 'type': 'number[]' },
-                { 'tfInputIndex': 3, 'dlParamName': 'flowIn', 'type': 'number' },
-                { 'tfParamName': 'T', 'dlParamName': 'dtype', 'type': 'dtype' }
-            ]
+            'inputs': [
+                { 'start': 0, 'name': 'tensorArrayId', 'type': 'number' },
+                { 'start': 1, 'name': 'tensor', 'type': 'tensor' },
+                { 'start': 2, 'name': 'lengths', 'type': 'number[]' },
+                { 'start': 3, 'name': 'flowIn', 'type': 'number' },
+            ],
+            'attrs': [{ 'tfName': 'T', 'name': 'dtype', 'type': 'dtype' }]
         },
         {
             'tfOpName': 'TensorArraySizeV3',
-            'dlOpName': 'tensorArraySize',
             'category': 'control',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'tensorArrayId', 'type': 'number' },
-                { 'tfInputIndex': 1, 'dlParamName': 'flowIn', 'type': 'number' }
+            'inputs': [
+                { 'start': 0, 'name': 'tensorArrayId', 'type': 'number' },
+                { 'start': 1, 'name': 'flowIn', 'type': 'number' }
             ]
         },
         {
             'tfOpName': 'TensorArrayCloseV3',
-            'dlOpName': 'tensorArrayClose',
             'category': 'control',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'tensorArrayId', 'type': 'number' }
-            ]
+            'inputs': [{ 'start': 0, 'name': 'tensorArrayId', 'type': 'number' }]
         }
     ];
 
@@ -5381,74 +5264,77 @@
         json: json$2
     });
 
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     var json$3 = [
         {
             'tfOpName': 'AvgPool',
-            'dlOpName': 'avgPool',
             'category': 'convolution',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfParamName': 'strides', 'dlParamName': 'strides', 'type': 'number[]' },
-                { 'tfParamName': 'padding', 'dlParamName': 'pad', 'type': 'string' }, {
-                    'tfParamName': 'data_format',
-                    'dlParamName': 'dataFormat',
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'strides', 'name': 'strides', 'type': 'number[]' },
+                { 'tfName': 'padding', 'name': 'pad', 'type': 'string' }, {
+                    'tfName': 'data_format',
+                    'name': 'dataFormat',
                     'type': 'string',
                     'notSupported': true
                 },
-                { 'tfParamName': 'ksize', 'dlParamName': 'kernelSize', 'type': 'number[]' },
-                {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+                { 'tfName': 'ksize', 'name': 'kernelSize', 'type': 'number[]' },
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'MaxPool',
-            'dlOpName': 'maxPool',
             'category': 'convolution',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfParamName': 'strides', 'dlParamName': 'strides', 'type': 'number[]' },
-                { 'tfParamName': 'padding', 'dlParamName': 'pad', 'type': 'string' }, {
-                    'tfParamName': 'data_format',
-                    'dlParamName': 'dataFormat',
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'strides', 'name': 'strides', 'type': 'number[]' },
+                { 'tfName': 'padding', 'name': 'pad', 'type': 'string' }, {
+                    'tfName': 'data_format',
+                    'name': 'dataFormat',
                     'type': 'string',
                     'notSupported': true
                 },
-                { 'tfParamName': 'ksize', 'dlParamName': 'kernelSize', 'type': 'number[]' },
-                {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+                { 'tfName': 'ksize', 'name': 'kernelSize', 'type': 'number[]' },
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Conv1D',
-            'dlOpName': 'conv1d',
             'category': 'convolution',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'filter', 'type': 'tensor' },
-                { 'tfParamName': 'stride', 'dlParamName': 'stride', 'type': 'number' },
-                { 'tfParamName': 'padding', 'dlParamName': 'pad', 'type': 'string' }, {
-                    'tfParamName': 'data_format',
-                    'dlParamName': 'dataFormat',
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'filter', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'stride', 'name': 'stride', 'type': 'number' },
+                { 'tfName': 'padding', 'name': 'pad', 'type': 'string' }, {
+                    'tfName': 'data_format',
+                    'name': 'dataFormat',
                     'type': 'string',
                     'defaultValue': 'NWC'
                 },
-                {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                },
-                {
-                    'tfParamName': 'dilation',
-                    'dlParamName': 'dilation',
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }, {
+                    'tfName': 'dilation',
+                    'name': 'dilation',
                     'type': 'number',
                     'defaultValue': 1
                 }
@@ -5456,47 +5342,37 @@
         },
         {
             'tfOpName': 'Conv2D',
-            'dlOpName': 'conv2d',
             'category': 'convolution',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'filter', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                },
-                { 'tfParamName': 'strides', 'dlParamName': 'strides', 'type': 'number[]' },
-                { 'tfParamName': 'padding', 'dlParamName': 'pad', 'type': 'string' }, {
-                    'tfParamName': 'useCudnnOnGpu',
-                    'dlParamName': 'useCudnnOnGpu',
-                    'type': 'bool'
-                },
-                {
-                    'tfParamName': 'data_format',
-                    'dlParamName': 'dataFormat',
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'filter', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true },
+                { 'tfName': 'strides', 'name': 'strides', 'type': 'number[]' },
+                { 'tfName': 'padding', 'name': 'pad', 'type': 'string' },
+                { 'tfName': 'useCudnnOnGpu', 'name': 'useCudnnOnGpu', 'type': 'bool' }, {
+                    'tfName': 'data_format',
+                    'name': 'dataFormat',
                     'type': 'string',
                     'defaultValue': 'NHWC'
                 },
-                {
-                    'tfParamName': 'dilations',
-                    'dlParamName': 'dilations',
-                    'type': 'number[]'
-                }
+                { 'tfName': 'dilations', 'name': 'dilations', 'type': 'number[]' }
             ]
         },
         {
             'tfOpName': 'Conv2DBackpropInput',
-            'dlOpName': 'conv2dTranspose',
             'category': 'convolution',
-            'params': [
-                { 'tfInputIndex': 2, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'filter', 'type': 'tensor' },
-                { 'tfInputIndex': 0, 'dlParamName': 'outputShape', 'type': 'number[]' },
-                { 'tfParamName': 'strides', 'dlParamName': 'strides', 'type': 'number[]' },
-                { 'tfParamName': 'padding', 'dlParamName': 'pad', 'type': 'string' }, {
-                    'tfParamName': 'data_format',
-                    'dlParamName': 'dataFormat',
+            'inputs': [
+                { 'start': 2, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'filter', 'type': 'tensor' },
+                { 'start': 0, 'name': 'outputShape', 'type': 'number[]' },
+            ],
+            'attrs': [
+                { 'tfName': 'strides', 'name': 'strides', 'type': 'number[]' },
+                { 'tfName': 'padding', 'name': 'pad', 'type': 'string' }, {
+                    'tfName': 'data_format',
+                    'name': 'dataFormat',
                     'type': 'string',
                     'notSupported': true
                 }
@@ -5504,44 +5380,38 @@
         },
         {
             'tfOpName': 'DepthwiseConv2d',
-            'dlOpName': 'depthwiseConv2d',
             'category': 'convolution',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'input', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'filter', 'type': 'tensor' },
-                { 'tfParamName': 'strides', 'dlParamName': 'strides', 'type': 'number[]' },
-                { 'tfParamName': 'padding', 'dlParamName': 'pad', 'type': 'string' }, {
-                    'tfParamName': 'data_format',
-                    'dlParamName': 'dataFormat',
+            'inputs': [
+                { 'start': 0, 'name': 'input', 'type': 'tensor' },
+                { 'start': 1, 'name': 'filter', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'strides', 'name': 'strides', 'type': 'number[]' },
+                { 'tfName': 'padding', 'name': 'pad', 'type': 'string' }, {
+                    'tfName': 'data_format',
+                    'name': 'dataFormat',
                     'type': 'string',
                     'defaultValue': 'NHWC'
                 },
-                {
-                    'tfParamName': 'dilations',
-                    'dlParamName': 'dilations',
-                    'type': 'number[]'
-                }
+                { 'tfName': 'dilations', 'name': 'dilations', 'type': 'number[]' }
             ]
         },
         {
             'tfOpName': 'DepthwiseConv2dNative',
-            'dlOpName': 'depthwiseConv2d',
             'category': 'convolution',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'input', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'filter', 'type': 'tensor' },
-                { 'tfParamName': 'strides', 'dlParamName': 'strides', 'type': 'number[]' },
-                { 'tfParamName': 'padding', 'dlParamName': 'pad', 'type': 'string' }, {
-                    'tfParamName': 'data_format',
-                    'dlParamName': 'dataFormat',
+            'inputs': [
+                { 'start': 0, 'name': 'input', 'type': 'tensor' },
+                { 'start': 1, 'name': 'filter', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'strides', 'name': 'strides', 'type': 'number[]' },
+                { 'tfName': 'padding', 'name': 'pad', 'type': 'string' }, {
+                    'tfName': 'data_format',
+                    'name': 'dataFormat',
                     'type': 'string',
                     'defaultValue': 'NHWC'
                 },
-                {
-                    'tfParamName': 'dilations',
-                    'dlParamName': 'dilations',
-                    'type': 'number[]'
-                }
+                { 'tfName': 'dilations', 'name': 'dilations', 'type': 'number[]' }
             ]
         }
     ];
@@ -5550,184 +5420,164 @@
         json: json$3
     });
 
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     var json$4 = [
         {
             'tfOpName': 'Fill',
-            'dlOpName': 'fill',
             'category': 'creation',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'shape', 'type': 'number[]' },
-                { 'tfInputIndex': 1, 'dlParamName': 'value', 'type': 'number' },
-                { 'tfParamName': 'T', 'dlParamName': 'dtype', 'type': 'dtype' }
-            ]
+            'inputs': [
+                { 'start': 0, 'name': 'shape', 'type': 'number[]' },
+                { 'start': 1, 'name': 'value', 'type': 'number' },
+            ],
+            'attrs': [{ 'tfName': 'T', 'name': 'dtype', 'type': 'dtype' }]
         },
         {
             'tfOpName': 'LinSpace',
-            'dlOpName': 'linspace',
             'category': 'creation',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'start', 'type': 'number' },
-                { 'tfInputIndex': 1, 'dlParamName': 'stop', 'type': 'number' },
-                { 'tfInputIndex': 2, 'dlParamName': 'num', 'type': 'number' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'start', 'type': 'number' },
+                { 'start': 1, 'name': 'stop', 'type': 'number' },
+                { 'start': 2, 'name': 'num', 'type': 'number' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'OneHot',
-            'dlOpName': 'oneHot',
             'category': 'creation',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'indices', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'depth', 'type': 'number' }, {
-                    'tfInputIndex': 2,
-                    'dlParamName': 'onValue',
-                    'type': 'number',
-                    'defaultValue': 1
-                },
+            'inputs': [
+                { 'start': 0, 'name': 'indices', 'type': 'tensor' },
+                { 'start': 1, 'name': 'depth', 'type': 'number' },
+                { 'start': 2, 'name': 'onValue', 'type': 'number', 'defaultValue': 1 },
+                { 'start': 3, 'name': 'offValue', 'type': 'number', 'defaultValue': 0 },
+            ],
+            'attrs': [
                 {
-                    'tfInputIndex': 3,
-                    'dlParamName': 'offValue',
-                    'type': 'number',
-                    'defaultValue': 0
-                },
-                {
-                    'tfParamName': 'axis',
-                    'dlParamName': 'axis',
+                    'tfName': 'axis',
+                    'name': 'axis',
                     'type': 'number',
                     'notSupported': true
                 },
-                {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Ones',
-            'dlOpName': 'ones',
             'category': 'creation',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'shape', 'type': 'number[]' },
-                { 'tfParamName': 'T', 'dlParamName': 'dtype', 'type': 'dtype' }
-            ]
+            'inputs': [
+                { 'start': 0, 'name': 'shape', 'type': 'number[]' },
+            ],
+            'attrs': [{ 'tfName': 'T', 'name': 'dtype', 'type': 'dtype' }]
         },
         {
             'tfOpName': 'OnesLike',
-            'dlOpName': 'onesLike',
             'category': 'creation',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfParamName': 'dtype', 'dlParamName': 'dtype', 'type': 'dtype' }
-            ]
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [{ 'tfName': 'dtype', 'name': 'dtype', 'type': 'dtype' }]
         },
         {
             'tfOpName': 'RandomUniform',
-            'dlOpName': 'randomUniform',
             'category': 'creation',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'shape', 'type': 'number[]' }, {
-                    'tfParamName': 'minval',
-                    'dlParamName': 'minval',
+            'inputs': [
+                { 'start': 0, 'name': 'shape', 'type': 'number[]' },
+            ],
+            'attrs': [
+                {
+                    'tfName': 'minval',
+                    'name': 'minval',
                     'type': 'number',
                     'defaultValue': 0
                 },
                 {
-                    'tfParamName': 'maxval',
-                    'dlParamName': 'maxval',
+                    'tfName': 'maxval',
+                    'name': 'maxval',
                     'type': 'number',
                     'defaultValue': 1
                 },
-                { 'tfParamName': 'dtype', 'dlParamName': 'dtype', 'type': 'dtype' }, {
-                    'tfParamName': 'seed',
-                    'dlParamName': 'seed',
-                    'type': 'number',
-                    'defaultValue': 0
-                },
-                {
-                    'tfParamName': 'seed2',
-                    'dlParamName': 'seed2',
+                { 'tfName': 'dtype', 'name': 'dtype', 'type': 'dtype' },
+                { 'tfName': 'seed', 'name': 'seed', 'type': 'number', 'defaultValue': 0 }, {
+                    'tfName': 'seed2',
+                    'name': 'seed2',
                     'type': 'number',
                     'defaultValue': 0,
                     'notSupported': true
                 },
-                {
-                    'tfParamName': 'T',
-                    'dlParamName': 'T',
-                    'type': 'number',
-                    'notSupported': true
-                }
+                { 'tfName': 'T', 'name': 'T', 'type': 'number', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Range',
-            'dlOpName': 'range',
             'category': 'creation',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'start', 'type': 'number' },
-                { 'tfInputIndex': 1, 'dlParamName': 'stop', 'type': 'number' }, {
-                    'tfInputIndex': 2,
-                    'dlParamName': 'step',
-                    'type': 'number',
-                    'defaultValue': 0
-                },
-                { 'tfParamName': 'Tidx', 'dlParamName': 'dtype', 'type': 'dtype' }
-            ]
+            'inputs': [
+                { 'start': 0, 'name': 'start', 'type': 'number' },
+                { 'start': 1, 'name': 'stop', 'type': 'number' },
+                { 'start': 2, 'name': 'step', 'type': 'number', 'defaultValue': 0 },
+            ],
+            'attrs': [{ 'tfName': 'Tidx', 'name': 'dtype', 'type': 'dtype' }]
         },
         {
-            'tfOpName': 'truncatedNormal',
-            'dlOpName': 'truncatedNormal',
+            'tfOpName': 'TruncatedNormal',
             'category': 'creation',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'shape', 'type': 'number[]' }, {
-                    'tfParamName': 'means',
-                    'dlParamName': 'mean',
+            'inputs': [
+                { 'start': 0, 'name': 'shape', 'type': 'number[]' },
+            ],
+            'attrs': [
+                {
+                    'tfName': 'means',
+                    'name': 'mean',
                     'type': 'number',
                     'defaultValue': 0.0
                 },
                 {
-                    'tfParamName': 'stddev',
-                    'dlParamName': 'stdDev',
+                    'tfName': 'stddev',
+                    'name': 'stdDev',
                     'type': 'number',
                     'defaultValue': 1.0
                 },
-                { 'tfParamName': 'seed', 'dlParamName': 'seed', 'type': 'number' }, {
-                    'tfParamName': 'seed2',
-                    'dlParamName': 'seed2',
+                { 'tfName': 'seed', 'name': 'seed', 'type': 'number' }, {
+                    'tfName': 'seed2',
+                    'name': 'seed2',
                     'type': 'number',
                     'defaultValue': 0,
                     'notSupported': true
                 },
-                { 'tfParamName': 'dtype', 'dlParamName': 'dtype', 'type': 'dtype' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'T',
-                    'type': 'number',
-                    'notSupported': true
-                }
+                { 'tfName': 'dtype', 'name': 'dtype', 'type': 'dtype' },
+                { 'tfName': 'T', 'name': 'T', 'type': 'number', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Zeros',
-            'dlOpName': 'zeros',
             'category': 'creation',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'shape', 'type': 'number[]' },
-                { 'tfParamName': 'T', 'dlParamName': 'dtype', 'type': 'dtype' }
-            ]
+            'inputs': [
+                { 'start': 0, 'name': 'shape', 'type': 'number[]' },
+            ],
+            'attrs': [{ 'tfName': 'T', 'name': 'dtype', 'type': 'dtype' }]
         },
         {
             'tfOpName': 'ZerosLike',
-            'dlOpName': 'zerosLike',
             'category': 'creation',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfParamName': 'T', 'dlParamName': 'dtype', 'type': 'dtype' }
-            ]
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [{ 'tfName': 'T', 'name': 'dtype', 'type': 'dtype' }]
         }
     ];
 
@@ -5735,56 +5585,67 @@
         json: json$4
     });
 
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     var json$5 = [
         {
             'tfOpName': 'NonMaxSuppressionV2',
-            'dlOpName': 'nonMaxSuppression',
             'category': 'dynamic',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'boxes', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'scores', 'type': 'tensor' },
-                { 'tfInputIndex': 2, 'dlParamName': 'maxOutputSize', 'type': 'number' },
-                { 'tfInputIndex': 3, 'dlParamName': 'iouThreshold', 'type': 'number' }
+            'inputs': [
+                { 'start': 0, 'name': 'boxes', 'type': 'tensor' },
+                { 'start': 1, 'name': 'scores', 'type': 'tensor' },
+                { 'start': 2, 'name': 'maxOutputSize', 'type': 'number' },
+                { 'start': 3, 'name': 'iouThreshold', 'type': 'number' }
             ]
         },
         {
             'tfOpName': 'NonMaxSuppressionV3',
-            'dlOpName': 'nonMaxSuppression',
             'category': 'dynamic',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'boxes', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'scores', 'type': 'tensor' },
-                { 'tfInputIndex': 2, 'dlParamName': 'maxOutputSize', 'type': 'number' },
-                { 'tfInputIndex': 3, 'dlParamName': 'iouThreshold', 'type': 'number' },
-                { 'tfInputIndex': 4, 'dlParamName': 'scoreThreshold', 'type': 'number' }
+            'inputs': [
+                { 'start': 0, 'name': 'boxes', 'type': 'tensor' },
+                { 'start': 1, 'name': 'scores', 'type': 'tensor' },
+                { 'start': 2, 'name': 'maxOutputSize', 'type': 'number' },
+                { 'start': 3, 'name': 'iouThreshold', 'type': 'number' },
+                { 'start': 4, 'name': 'scoreThreshold', 'type': 'number' }
             ]
         },
         {
             'tfOpName': 'Where',
-            'dlOpName': 'whereAsync',
             'category': 'dynamic',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'condition', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'condition', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'ListDiff',
-            'dlOpName': 'setdiff1dAsync',
             'category': 'dynamic',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'y', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'y', 'type': 'tensor' },
+            ],
+            'attrs': [{
+                    'tfName': 'T',
+                    'name': 'dtype',
                     'type': 'dtype',
                     'notSupported': true
-                }
-            ]
+                }]
         }
     ];
 
@@ -5792,121 +5653,138 @@
         json: json$5
     });
 
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     var json$6 = [{
             'tfOpName': 'TopKV2',
-            'dlOpName': 'topK',
             'category': 'evaluation',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'k', 'type': 'number' },
-                { 'tfParamName': 'sorted', 'dlParamName': 'sorted', 'type': 'bool' }
-            ]
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'k', 'type': 'number' },
+            ],
+            'attrs': [{ 'tfName': 'sorted', 'name': 'sorted', 'type': 'bool' }]
         }];
 
     var evaluation = /*#__PURE__*/Object.freeze({
         json: json$6
     });
 
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     var json$7 = [
         {
             'tfOpName': 'PlaceholderWithDefault',
-            'dlOpName': 'placeholder',
             'category': 'graph',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'default', 'type': 'tensor' },
-                { 'tfParamName': 'shape', 'dlParamName': 'shape', 'type': 'shape' },
-                { 'tfParamName': 'dtype', 'dlParamName': 'dtype', 'type': 'dtype' }
+            'inputs': [
+                { 'start': 0, 'name': 'default', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'shape', 'name': 'shape', 'type': 'shape' },
+                { 'tfName': 'dtype', 'name': 'dtype', 'type': 'dtype' }
             ]
         },
         {
             'tfOpName': 'Placeholder',
-            'dlOpName': 'placeholder',
             'category': 'graph',
-            'params': [
-                { 'tfParamName': 'shape', 'dlParamName': 'shape', 'type': 'shape' },
-                { 'tfParamName': 'dtype', 'dlParamName': 'dtype', 'type': 'dtype' }
+            'attrs': [
+                { 'tfName': 'shape', 'name': 'shape', 'type': 'shape' },
+                { 'tfName': 'dtype', 'name': 'dtype', 'type': 'dtype' }
             ]
         },
-        { 'tfOpName': 'Const', 'dlOpName': 'const', 'category': 'graph' }, {
+        { 'tfOpName': 'Const', 'category': 'graph' }, {
             'tfOpName': 'Identity',
-            'dlOpName': 'identity',
             'category': 'graph',
-            'params': [{ 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }]
+            'inputs': [{ 'start': 0, 'name': 'x', 'type': 'tensor' }]
         },
         {
             'tfOpName': 'Snapshot',
-            'dlOpName': 'snapshot',
             'category': 'graph',
-            'params': [{ 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }]
+            'inputs': [{ 'start': 0, 'name': 'x', 'type': 'tensor' }]
         },
         {
             'tfOpName': 'Rank',
-            'dlOpName': 'rank',
             'category': 'graph',
-            'params': [{ 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }]
+            'inputs': [{ 'start': 0, 'name': 'x', 'type': 'tensor' }]
         },
         {
             'tfOpName': 'Size',
-            'dlOpName': 'size',
             'category': 'graph',
-            'params': [{ 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }]
+            'inputs': [{ 'start': 0, 'name': 'x', 'type': 'tensor' }]
         },
         {
             'tfOpName': 'Shape',
-            'dlOpName': 'shape',
             'category': 'graph',
-            'params': [{ 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }]
+            'inputs': [{ 'start': 0, 'name': 'x', 'type': 'tensor' }]
         },
         {
             'tfOpName': 'ShapeN',
-            'dlOpName': 'shapeN',
             'category': 'graph',
-            'params': [{
-                    'tfInputIndex': 0,
-                    'tfInputParamLength': 0,
-                    'dlParamName': 'x',
-                    'type': 'tensors'
-                }]
+            'inputs': [{ 'start': 0, 'end': 0, 'name': 'x', 'type': 'tensors' }]
         },
         {
             'tfOpName': 'Print',
-            'dlOpName': 'print',
             'category': 'graph',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfInputIndex': 1,
-                    'tfInputParamLength': 1,
-                    'dlParamName': 'data',
-                    'type': 'tensors'
-                },
-                { 'tfParamName': 'message', 'dlParamName': 'message', 'type': 'string' }, {
-                    'tfParamName': 'first_n',
-                    'dlParamName': 'firstN',
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'data', 'type': 'tensors' },
+            ],
+            'attrs': [
+                { 'tfName': 'message', 'name': 'message', 'type': 'string' }, {
+                    'tfName': 'first_n',
+                    'name': 'firstN',
                     'type': 'number',
-                    'notSupprted': true
+                    'notSupported': true
                 },
                 {
-                    'tfParamName': 'summarize',
-                    'dlParamName': 'summarize',
+                    'tfName': 'summarize',
+                    'name': 'summarize',
                     'type': 'number',
                     'defaultValue': 3
                 }
             ]
         },
-        { 'tfOpName': 'NoOp', 'dlOpName': 'noop', 'category': 'graph', 'params': [] }, {
+        { 'tfOpName': 'NoOp', 'category': 'graph', 'inputs': [] }, {
             'tfOpName': 'StopGradient',
-            'dlOpName': 'stopGradient',
             'category': 'graph',
-            'params': [{ 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }]
+            'inputs': [{ 'start': 0, 'name': 'x', 'type': 'tensor' }]
         },
         {
             'tfOpName': 'FakeQuantWithMinMaxVars',
-            'dlOpName': 'fakeQuantWithMinMaxVars',
             'category': 'graph',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfParamName': 'min', 'dlParamName': 'min', 'type': 'number' },
-                { 'tfParamName': 'max', 'dlParamName': 'max', 'type': 'number' }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'min', 'name': 'min', 'type': 'number' },
+                { 'tfName': 'max', 'name': 'max', 'type': 'number' }
             ]
         }
     ];
@@ -5915,57 +5793,60 @@
         json: json$7
     });
 
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     var json$8 = [
         {
             'tfOpName': 'ResizeBilinear',
-            'dlOpName': 'resizeBilinear',
             'category': 'image',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'images', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'size', 'type': 'number[]' }, {
-                    'tfParamName': 'align_corners',
-                    'dlParamName': 'alignCorners',
-                    'type': 'bool'
-                },
-                {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'images', 'type': 'tensor' },
+                { 'start': 1, 'name': 'size', 'type': 'number[]' },
+            ],
+            'attrs': [
+                { 'tfName': 'align_corners', 'name': 'alignCorners', 'type': 'bool' },
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'ResizeNearestNeighbor',
-            'dlOpName': 'resizeNearestNeighbor',
             'category': 'image',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'images', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'size', 'type': 'number[]' }, {
-                    'tfParamName': 'align_corners',
-                    'dlParamName': 'alignCorners',
-                    'type': 'bool'
-                },
-                {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'images', 'type': 'tensor' },
+                { 'start': 1, 'name': 'size', 'type': 'number[]' },
+            ],
+            'attrs': [
+                { 'tfName': 'align_corners', 'name': 'alignCorners', 'type': 'bool' },
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'CropAndResize',
-            'dlOpName': 'cropAndResize',
             'category': 'image',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'image', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'boxes', 'type': 'tensor' },
-                { 'tfInputIndex': 2, 'dlParamName': 'boxInd', 'type': 'tensor' },
-                { 'tfInputIndex': 3, 'dlParamName': 'cropSize', 'type': 'number[]' },
-                { 'tfParamName': 'method', 'dlParamName': 'method', 'type': 'string' }, {
-                    'tfParamName': 'extrapolation_value',
-                    'dlParamName': 'extrapolationValue',
+            'inputs': [
+                { 'start': 0, 'name': 'image', 'type': 'tensor' },
+                { 'start': 1, 'name': 'boxes', 'type': 'tensor' },
+                { 'start': 2, 'name': 'boxInd', 'type': 'tensor' },
+                { 'start': 3, 'name': 'cropSize', 'type': 'number[]' },
+            ],
+            'attrs': [
+                { 'tfName': 'method', 'name': 'method', 'type': 'string' }, {
+                    'tfName': 'extrapolation_value',
+                    'name': 'extrapolationValue',
                     'type': 'number'
                 }
             ]
@@ -5976,146 +5857,135 @@
         json: json$8
     });
 
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     var json$9 = [
         {
             'tfOpName': 'Equal',
-            'dlOpName': 'equal',
             'category': 'logical',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'a', 'type': 'tensor' },
+                { 'start': 1, 'name': 'b', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'NotEqual',
-            'dlOpName': 'notEqual',
             'category': 'logical',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'a', 'type': 'tensor' },
+                { 'start': 1, 'name': 'b', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Greater',
-            'dlOpName': 'greater',
             'category': 'logical',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'a', 'type': 'tensor' },
+                { 'start': 1, 'name': 'b', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'GreaterEqual',
-            'dlOpName': 'greaterEqual',
             'category': 'logical',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'a', 'type': 'tensor' },
+                { 'start': 1, 'name': 'b', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Less',
-            'dlOpName': 'less',
             'category': 'logical',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'a', 'type': 'tensor' },
+                { 'start': 1, 'name': 'b', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'LessEqual',
-            'dlOpName': 'lessEqual',
             'category': 'logical',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'a', 'type': 'tensor' },
+                { 'start': 1, 'name': 'b', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'LogicalAnd',
-            'dlOpName': 'logicalAnd',
             'category': 'logical',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'a', 'type': 'tensor' },
+                { 'start': 1, 'name': 'b', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'LogicalNot',
-            'dlOpName': 'logicalNot',
             'category': 'logical',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'a', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'LogicalOr',
-            'dlOpName': 'logicalOr',
             'category': 'logical',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'a', 'type': 'tensor' },
+                { 'start': 1, 'name': 'b', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Select',
-            'dlOpName': 'where',
             'category': 'logical',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'condition', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'a', 'type': 'tensor' },
-                { 'tfInputIndex': 2, 'dlParamName': 'b', 'type': 'tensor' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
+            'inputs': [
+                { 'start': 0, 'name': 'condition', 'type': 'tensor' },
+                { 'start': 1, 'name': 'a', 'type': 'tensor' },
+                { 'start': 2, 'name': 'b', 'type': 'tensor' },
+            ],
+            'attrs': [{
+                    'tfName': 'T',
+                    'name': 'dtype',
                     'type': 'dtype',
                     'notSupported': true
-                }
-            ]
+                }]
         }
     ];
 
@@ -6123,72 +5993,82 @@
         json: json$9
     });
 
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     var json$10 = [
         {
             'tfOpName': 'MatMul',
-            'dlOpName': 'matMul',
             'category': 'matrices',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
-                    'tfParamName': 'transpose_a',
-                    'dlParamName': 'transposeA',
+            'inputs': [
+                { 'start': 0, 'name': 'a', 'type': 'tensor' },
+                { 'start': 1, 'name': 'b', 'type': 'tensor' },
+            ],
+            'attrs': [
+                {
+                    'tfName': 'transpose_a',
+                    'name': 'transposeA',
                     'type': 'bool',
                     'defaultValue': false
                 },
                 {
-                    'tfParamName': 'transpose_b',
-                    'dlParamName': 'transposeB',
+                    'tfName': 'transpose_b',
+                    'name': 'transposeB',
                     'type': 'bool',
                     'defaultValue': false
                 },
-                {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'BatchMatMul',
-            'dlOpName': 'matMul',
             'category': 'matrices',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'a', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'b', 'type': 'tensor' }, {
-                    'tfParamName': 'adj_x',
-                    'dlParamName': 'transposeA',
+            'inputs': [
+                { 'start': 0, 'name': 'a', 'type': 'tensor' },
+                { 'start': 1, 'name': 'b', 'type': 'tensor' },
+            ],
+            'attrs': [
+                {
+                    'tfName': 'adj_x',
+                    'name': 'transposeA',
                     'type': 'bool',
                     'defaultValue': false
                 },
                 {
-                    'tfParamName': 'adj_y',
-                    'dlParamName': 'transposeB',
+                    'tfName': 'adj_y',
+                    'name': 'transposeB',
                     'type': 'bool',
                     'defaultValue': false
                 },
-                {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
-                    'type': 'dtype',
-                    'notSupported': true
-                }
+                { 'tfName': 'T', 'name': 'dtype', 'type': 'dtype', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'Transpose',
-            'dlOpName': 'transpose',
             'category': 'matrices',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'perm', 'type': 'number[]' }, {
-                    'tfParamName': 'T',
-                    'dlParamName': 'dtype',
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'perm', 'type': 'number[]' },
+            ],
+            'attrs': [{
+                    'tfName': 'T',
+                    'name': 'dtype',
                     'type': 'dtype',
                     'notSupported': true
-                }
-            ]
+                }]
         }
     ];
 
@@ -6196,25 +6076,43 @@
         json: json$10
     });
 
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     var json$11 = [
         {
             'tfOpName': 'FusedBatchNorm',
-            'dlOpName': 'batchNormalization',
             'category': 'normalization',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'scale', 'type': 'tensor' },
-                { 'tfInputIndex': 2, 'dlParamName': 'offset', 'type': 'tensor' },
-                { 'tfInputIndex': 3, 'dlParamName': 'mean', 'type': 'tensor' },
-                { 'tfInputIndex': 4, 'dlParamName': 'variance', 'type': 'tensor' }, {
-                    'tfParamName': 'epsilon',
-                    'dlParamName': 'epsilon',
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'scale', 'type': 'tensor' },
+                { 'start': 2, 'name': 'offset', 'type': 'tensor' },
+                { 'start': 3, 'name': 'mean', 'type': 'tensor' },
+                { 'start': 4, 'name': 'variance', 'type': 'tensor' },
+            ],
+            'attrs': [
+                {
+                    'tfName': 'epsilon',
+                    'name': 'epsilon',
                     'type': 'number',
                     'defaultValue': 0.001
                 },
                 {
-                    'tfParamName': 'data_format',
-                    'dlParamName': 'dataFormat',
+                    'tfName': 'data_format',
+                    'name': 'dataFormat',
                     'type': 'string',
                     'notSupported': true
                 }
@@ -6222,22 +6120,24 @@
         },
         {
             'tfOpName': 'FusedBatchNormV2',
-            'dlOpName': 'batchNormalization',
             'category': 'normalization',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'scale', 'type': 'tensor' },
-                { 'tfInputIndex': 2, 'dlParamName': 'offset', 'type': 'tensor' },
-                { 'tfInputIndex': 3, 'dlParamName': 'mean', 'type': 'tensor' },
-                { 'tfInputIndex': 4, 'dlParamName': 'variance', 'type': 'tensor' }, {
-                    'tfParamName': 'epsilon',
-                    'dlParamName': 'epsilon',
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'scale', 'type': 'tensor' },
+                { 'start': 2, 'name': 'offset', 'type': 'tensor' },
+                { 'start': 3, 'name': 'mean', 'type': 'tensor' },
+                { 'start': 4, 'name': 'variance', 'type': 'tensor' },
+            ],
+            'attrs': [
+                {
+                    'tfName': 'epsilon',
+                    'name': 'epsilon',
                     'type': 'number',
                     'defaultValue': 0.001
                 },
                 {
-                    'tfParamName': 'data_format',
-                    'dlParamName': 'dataFormat',
+                    'tfName': 'data_format',
+                    'name': 'dataFormat',
                     'type': 'string',
                     'notSupported': true
                 }
@@ -6245,30 +6145,27 @@
         },
         {
             'tfOpName': 'LRN',
-            'dlOpName': 'localResponseNormalization',
             'category': 'normalization',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'depth_radius',
-                    'dlParamName': 'radius',
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                {
+                    'tfName': 'depth_radius',
+                    'name': 'radius',
                     'type': 'number',
                     'defaultValue': 5
                 },
+                { 'tfName': 'bias', 'name': 'bias', 'type': 'number', 'defaultValue': 1.0 },
                 {
-                    'tfParamName': 'bias',
-                    'dlParamName': 'bias',
+                    'tfName': 'alpha',
+                    'name': 'alpha',
                     'type': 'number',
                     'defaultValue': 1.0
                 },
                 {
-                    'tfParamName': 'alpha',
-                    'dlParamName': 'alpha',
-                    'type': 'number',
-                    'defaultValue': 1.0
-                },
-                {
-                    'tfParamName': 'beta',
-                    'dlParamName': 'beta',
+                    'tfName': 'beta',
+                    'name': 'beta',
                     'type': 'number',
                     'defaultValue': 0.5
                 }
@@ -6276,32 +6173,30 @@
         },
         {
             'tfOpName': 'Softmax',
-            'dlOpName': 'softmax',
             'category': 'normalization',
-            'params': [{ 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }]
+            'inputs': [{ 'start': 0, 'name': 'x', 'type': 'tensor' }]
         },
         {
             'tfOpName': 'LogSoftmax',
-            'dlOpName': 'logSoftmax',
             'category': 'normalization',
-            'params': [{ 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }]
+            'inputs': [{ 'start': 0, 'name': 'x', 'type': 'tensor' }]
         },
         {
             'tfOpName': 'SparseToDense',
-            'dlOpName': 'sparseToDense',
             'category': 'normalization',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'sparseIndices', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'outputShape', 'type': 'number[]' },
-                { 'tfInputIndex': 2, 'dlParamName': 'sparseValues', 'type': 'tensor' },
-                { 'tfInputIndex': 3, 'dlParamName': 'defaultValue', 'type': 'tensor' }, {
-                    'tfParamName': 'validate_indices',
-                    'dlParamName': 'validateIndices',
+            'inputs': [
+                { 'start': 0, 'name': 'sparseIndices', 'type': 'tensor' },
+                { 'start': 1, 'name': 'outputShape', 'type': 'number[]' },
+                { 'start': 2, 'name': 'sparseValues', 'type': 'tensor' },
+                { 'start': 3, 'name': 'defaultValue', 'type': 'tensor' },
+            ],
+            'attrs': [{
+                    'tfName': 'validate_indices',
+                    'name': 'validateIndices',
                     'type': 'bool',
                     'defaultValue': true,
                     'notSupported': true
-                }
-            ]
+                }]
         }
     ];
 
@@ -6309,97 +6204,101 @@
         json: json$11
     });
 
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     var json$12 = [
         {
             'tfOpName': 'Max',
-            'dlOpName': 'max',
             'category': 'reduction',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'axis', 'type': 'number[]' },
-                { 'tfParamName': 'keep_dims', 'dlParamName': 'keepDims', 'type': 'bool' }
-            ]
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'axis', 'type': 'number[]' },
+            ],
+            'attrs': [{ 'tfName': 'keep_dims', 'name': 'keepDims', 'type': 'bool' }]
         },
         {
             'tfOpName': 'Mean',
-            'dlOpName': 'mean',
             'category': 'reduction',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'axis', 'type': 'number[]' },
-                { 'tfParamName': 'keep_dims', 'dlParamName': 'keepDims', 'type': 'bool' }
-            ]
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'axis', 'type': 'number[]' },
+            ],
+            'attrs': [{ 'tfName': 'keep_dims', 'name': 'keepDims', 'type': 'bool' }]
         },
         {
             'tfOpName': 'Min',
-            'dlOpName': 'min',
             'category': 'reduction',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'axis', 'type': 'number[]' },
-                { 'tfParamName': 'keep_dims', 'dlParamName': 'keepDims', 'type': 'bool' }
-            ]
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'axis', 'type': 'number[]' },
+            ],
+            'attrs': [{ 'tfName': 'keep_dims', 'name': 'keepDims', 'type': 'bool' }]
         },
         {
             'tfOpName': 'Sum',
-            'dlOpName': 'sum',
             'category': 'reduction',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'axis', 'type': 'number[]' },
-                { 'tfParamName': 'keep_dims', 'dlParamName': 'keepDims', 'type': 'bool' }
-            ]
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'axis', 'type': 'number[]' },
+            ],
+            'attrs': [{ 'tfName': 'keep_dims', 'name': 'keepDims', 'type': 'bool' }]
         },
         {
             'tfOpName': 'All',
-            'dlOpName': 'all',
             'category': 'reduction',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'axis', 'type': 'number[]' },
-                { 'tfParamName': 'keep_dims', 'dlParamName': 'keepDims', 'type': 'bool' }
-            ]
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'axis', 'type': 'number[]' },
+            ],
+            'attrs': [{ 'tfName': 'keep_dims', 'name': 'keepDims', 'type': 'bool' }]
         },
         {
             'tfOpName': 'Any',
-            'dlOpName': 'any',
             'category': 'reduction',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'axis', 'type': 'number[]' },
-                { 'tfParamName': 'keep_dims', 'dlParamName': 'keepDims', 'type': 'bool' }
-            ]
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'axis', 'type': 'number[]' },
+            ],
+            'attrs': [{ 'tfName': 'keep_dims', 'name': 'keepDims', 'type': 'bool' }]
         },
         {
             'tfOpName': 'ArgMax',
-            'dlOpName': 'argMax',
             'category': 'reduction',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'axis', 'type': 'number' }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'axis', 'type': 'number' }
             ]
         },
         {
             'tfOpName': 'ArgMin',
-            'dlOpName': 'argMin',
             'category': 'reduction',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'axis', 'type': 'number' }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'axis', 'type': 'number' }
             ]
         },
         {
             'tfOpName': 'Prod',
-            'dlOpName': 'prod',
             'category': 'reduction',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'axis', 'type': 'number[]' }, {
-                    'tfParamName': 'keep_dims',
-                    'dlParamName': 'keepDims',
-                    'type': 'bool'
-                }
-            ]
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'axis', 'type': 'number[]' },
+            ],
+            'attrs': [{ 'tfName': 'keep_dims', 'name': 'keepDims', 'type': 'bool' }]
         }
     ];
 
@@ -6407,64 +6306,59 @@
         json: json$12
     });
 
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     var json$13 = [
         {
             'tfOpName': 'ConcatV2',
-            'dlOpName': 'concat',
             'category': 'slice_join',
-            'params': [
-                {
-                    'tfInputIndex': 0,
-                    'tfInputParamLength': 1,
-                    'dlParamName': 'tensors',
-                    'type': 'tensors'
-                },
-                { 'tfInputIndex': -1, 'dlParamName': 'axis', 'type': 'number' }
+            'inputs': [
+                { 'start': 0, 'end': -1, 'name': 'tensors', 'type': 'tensors' },
+                { 'start': -1, 'name': 'axis', 'type': 'number' }
             ]
         },
         {
             'tfOpName': 'Concat',
-            'dlOpName': 'concat',
             'category': 'slice_join',
-            'params': [
-                {
-                    'tfInputIndex': 1,
-                    'tfInputParamLength': 1,
-                    'dlParamName': 'tensors',
-                    'type': 'tensors'
-                },
-                { 'tfInputIndex': 0, 'dlParamName': 'axis', 'type': 'number' }
+            'inputs': [
+                { 'start': 1, 'end': 0, 'name': 'tensors', 'type': 'tensors' },
+                { 'start': 0, 'name': 'axis', 'type': 'number' }
             ]
         },
         {
             'tfOpName': 'GatherV2',
-            'dlOpName': 'gather',
             'category': 'slice_join',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'indices', 'type': 'tensor' }, {
-                    'tfInputIndex': 2,
-                    'dlParamName': 'axis',
-                    'type': 'number',
-                    'defaultValue': 0
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'indices', 'type': 'tensor' },
+                { 'start': 2, 'name': 'axis', 'type': 'number', 'defaultValue': 0 }
             ]
         },
         {
             'tfOpName': 'Gather',
-            'dlOpName': 'gather',
             'category': 'slice_join',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'indices', 'type': 'tensor' }, {
-                    'tfParamName': 'axis',
-                    'dlParamName': 'axis',
-                    'type': 'number',
-                    'defaultValue': 0
-                },
-                {
-                    'tfParamName': 'validate_indices',
-                    'dlParamName': 'validateIndices',
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'indices', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'axis', 'name': 'axis', 'type': 'number', 'defaultValue': 0 }, {
+                    'tfName': 'validate_indices',
+                    'name': 'validateIndices',
                     'type': 'bool',
                     'notSupported': true
                 }
@@ -6472,71 +6366,66 @@
         },
         {
             'tfOpName': 'Reverse',
-            'dlOpName': 'reverse',
             'category': 'slice_join',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfInputIndex': 1,
-                    'dlParamName': 'dims',
-                    'type': 'bool',
-                    'notSupported': true
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'dims', 'type': 'bool', 'notSupported': true }
             ]
         },
         {
             'tfOpName': 'ReverseV2',
-            'dlOpName': 'reverse',
             'category': 'slice_join',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'axis', 'type': 'number[]' }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'axis', 'type': 'number[]' }
             ]
         },
         {
             'tfOpName': 'Slice',
-            'dlOpName': 'slice',
             'category': 'slice_join',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'begin', 'type': 'number[]' },
-                { 'tfInputIndex': 2, 'dlParamName': 'size', 'type': 'number[]' }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'begin', 'type': 'number[]' },
+                { 'start': 2, 'name': 'size', 'type': 'number[]' }
             ]
         },
         {
             'tfOpName': 'StridedSlice',
-            'dlOpName': 'stridedSlice',
             'category': 'slice_join',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'begin', 'type': 'number[]' },
-                { 'tfInputIndex': 2, 'dlParamName': 'end', 'type': 'number[]' },
-                { 'tfInputIndex': 3, 'dlParamName': 'strides', 'type': 'number[]' }, {
-                    'tfParamName': 'begin_mask',
-                    'dlParamName': 'beginMask',
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'begin', 'type': 'number[]' },
+                { 'start': 2, 'name': 'end', 'type': 'number[]' },
+                { 'start': 3, 'name': 'strides', 'type': 'number[]' },
+            ],
+            'attrs': [
+                {
+                    'tfName': 'begin_mask',
+                    'name': 'beginMask',
                     'type': 'number',
                     'defaultValue': 0
                 },
                 {
-                    'tfParamName': 'end_mask',
-                    'dlParamName': 'endMask',
+                    'tfName': 'end_mask',
+                    'name': 'endMask',
                     'type': 'number',
                     'defaultValue': 0
                 },
                 {
-                    'tfParamName': 'new_axis_mask',
-                    'dlParamName': 'newAxisMask',
+                    'tfName': 'new_axis_mask',
+                    'name': 'newAxisMask',
                     'type': 'number',
                     'defaultValue': 0
                 },
                 {
-                    'tfParamName': 'ellipsis_mask',
-                    'dlParamName': 'ellipsisMask',
+                    'tfName': 'ellipsis_mask',
+                    'name': 'ellipsisMask',
                     'type': 'number',
                     'defaultValue': 0
                 },
                 {
-                    'tfParamName': 'shrink_axis_mask',
-                    'dlParamName': 'shrinkAxisMask',
+                    'tfName': 'shrink_axis_mask',
+                    'name': 'shrinkAxisMask',
                     'type': 'number',
                     'defaultValue': 0
                 }
@@ -6544,43 +6433,24 @@
         },
         {
             'tfOpName': 'Pack',
-            'dlOpName': 'stack',
             'category': 'slice_join',
-            'params': [
-                {
-                    'tfInputIndex': 0,
-                    'tfInputParamLength': 0,
-                    'dlParamName': 'tensors',
-                    'type': 'tensors'
-                },
-                {
-                    'tfParamName': 'axis',
-                    'dlParamName': 'axis',
-                    'type': 'number',
-                    'defaultValue': 0
-                }
+            'inputs': [
+                { 'start': 0, 'end': 0, 'name': 'tensors', 'type': 'tensors' },
+            ],
+            'attrs': [
+                { 'tfName': 'axis', 'name': 'axis', 'type': 'number', 'defaultValue': 0 }
             ]
         },
         {
             'tfOpName': 'Unpack',
-            'dlOpName': 'unstack',
             'category': 'slice_join',
-            'params': [
-                {
-                    'tfInputIndex': 0,
-                    'tfInputParamLength': 0,
-                    'dlParamName': 'tensor',
-                    'type': 'tensor'
-                },
-                {
-                    'tfParamName': 'axis',
-                    'dlParamName': 'axis',
-                    'type': 'number',
-                    'defaultValue': 0
-                },
-                {
-                    'tfParamName': 'num',
-                    'dlParamName': 'num',
+            'inputs': [
+                { 'start': 0, 'name': 'tensor', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'axis', 'name': 'axis', 'type': 'number', 'defaultValue': 0 }, {
+                    'tfName': 'num',
+                    'name': 'num',
                     'type': 'number',
                     'defaultValue': 0,
                     'notSupported': true
@@ -6589,82 +6459,68 @@
         },
         {
             'tfOpName': 'Tile',
-            'dlOpName': 'tile',
             'category': 'slice_join',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'reps', 'type': 'number[]' }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'reps', 'type': 'number[]' }
             ]
         },
         {
             'tfOpName': 'Split',
-            'dlOpName': 'split',
             'category': 'slice_join',
-            'params': [
-                {
-                    'tfInputIndex': 0,
-                    'dlParamName': 'axis',
-                    'type': 'number',
-                    'defaultValue': 0
-                },
-                { 'tfInputIndex': 1, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'num_split',
-                    'dlParamName': 'numOrSizeSplits',
+            'inputs': [
+                { 'start': 0, 'name': 'axis', 'type': 'number', 'defaultValue': 0 },
+                { 'start': 1, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [{
+                    'tfName': 'num_split',
+                    'name': 'numOrSizeSplits',
                     'type': 'number',
                     'defaultValue': 1
-                }
-            ]
+                }]
         },
         {
             'tfOpName': 'SplitV',
-            'dlOpName': 'split',
             'category': 'slice_join',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'numOrSizeSplits', 'type': 'number[]' },
-                {
-                    'tfInputIndex': 2,
-                    'dlParamName': 'axis',
-                    'type': 'number',
-                    'defaultValue': 0
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'numOrSizeSplits', 'type': 'number[]' },
+                { 'start': 2, 'name': 'axis', 'type': 'number', 'defaultValue': 0 }
             ]
         },
         {
             'tfOpName': 'ScatterNd',
-            'dlOpName': 'scatterNd',
             'category': 'slice_join',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'indices', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'values', 'type': 'tensor' },
-                { 'tfInputIndex': 2, 'dlParamName': 'shape', 'type': 'number[]' }
+            'inputs': [
+                { 'start': 0, 'name': 'indices', 'type': 'tensor' },
+                { 'start': 1, 'name': 'values', 'type': 'tensor' },
+                { 'start': 2, 'name': 'shape', 'type': 'number[]' }
             ]
         },
         {
             'tfOpName': 'GatherNd',
-            'dlOpName': 'gatherNd',
             'category': 'slice_join',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'indices', 'type': 'tensor' }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'indices', 'type': 'tensor' }
             ]
         },
         {
             'tfOpName': 'SparseToDense',
-            'dlOpName': 'sparseToDense',
             'category': 'slice_join',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'sparseIndices', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'outputShape', 'type': 'number[]' },
-                { 'tfInputIndex': 2, 'dlParamName': 'sparseValues', 'type': 'tensor' },
-                { 'tfInputIndex': 3, 'dlParamName': 'defaultValue', 'type': 'tensor' }, {
-                    'tfParamName': 'validate_indices',
-                    'dlParamName': 'validateIndices',
+            'inputs': [
+                { 'start': 0, 'name': 'sparseIndices', 'type': 'tensor' },
+                { 'start': 1, 'name': 'outputShape', 'type': 'number[]' },
+                { 'start': 2, 'name': 'sparseValues', 'type': 'tensor' },
+                { 'start': 3, 'name': 'defaultValue', 'type': 'tensor' },
+            ],
+            'attrs': [{
+                    'tfName': 'validate_indices',
+                    'name': 'validateIndices',
                     'type': 'bool',
                     'defaultValue': false,
                     'notSupported': true
-                }
-            ]
+                }]
         }
     ];
 
@@ -6672,42 +6528,54 @@
         json: json$13
     });
 
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     var json$14 = [
         {
             'tfOpName': 'FFT',
-            'dlOpName': 'fft',
             'category': 'spectral',
-            'params': [{ 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }]
+            'inputs': [{ 'start': 0, 'name': 'x', 'type': 'tensor' }]
         },
         {
             'tfOpName': 'IFFT',
-            'dlOpName': 'ifft',
             'category': 'spectral',
-            'params': [{ 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }]
+            'inputs': [{ 'start': 0, 'name': 'x', 'type': 'tensor' }]
         },
         {
             'tfOpName': 'RFFT',
-            'dlOpName': 'rfft',
             'category': 'spectral',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfInputIndex': 1,
-                    'dlParamName': 'fft_length',
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' }, {
+                    'start': 1,
+                    'name': 'fft_length',
                     'type': 'number',
-                    'unsupported': true
+                    'notSupported': true
                 }
             ]
         },
         {
             'tfOpName': 'IRFFT',
-            'dlOpName': 'irfft',
             'category': 'spectral',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfInputIndex': 1,
-                    'dlParamName': 'fft_length',
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' }, {
+                    'start': 1,
+                    'name': 'fft_length',
                     'type': 'number',
-                    'unsupported': true
+                    'notSupported': true
                 }
             ]
         }
@@ -6717,57 +6585,69 @@
         json: json$14
     });
 
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     var json$15 = [
         {
             'tfOpName': 'Cast',
-            'dlOpName': 'cast',
             'category': 'transformation',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'SrcT',
-                    'dlParamName': 'sdtype',
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                {
+                    'tfName': 'SrcT',
+                    'name': 'sdtype',
                     'type': 'dtype',
                     'notSupported': true
                 },
-                { 'tfParamName': 'DstT', 'dlParamName': 'dtype', 'type': 'dtype' }
+                { 'tfName': 'DstT', 'name': 'dtype', 'type': 'dtype' }
             ]
         },
         {
             'tfOpName': 'ExpandDims',
-            'dlOpName': 'expandDims',
             'category': 'transformation',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfInputIndex': 1,
-                    'tfParamNameDeprecated': 'dim',
-                    'dlParamName': 'axis',
-                    'type': 'number'
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'axis', 'type': 'number' }
             ]
         },
         {
             'tfOpName': 'Pad',
-            'dlOpName': 'pad',
             'category': 'transformation',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'padding', 'type': 'number[]' }, {
-                    'tfParamName': 'constant_value',
-                    'dlParamName': 'constantValue',
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'padding', 'type': 'number[]' },
+            ],
+            'attrs': [{
+                    'tfName': 'constant_value',
+                    'name': 'constantValue',
                     'type': 'number',
                     'defaultValue': 0
-                }
-            ]
+                }]
         },
         {
             'tfOpName': 'PadV2',
-            'dlOpName': 'pad',
             'category': 'transformation',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'padding', 'type': 'number[]' }, {
-                    'tfInputIndex': 2,
-                    'dlParamName': 'constantValue',
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'padding', 'type': 'number[]' }, {
+                    'start': 2,
+                    'name': 'constantValue',
                     'type': 'number',
                     'defaultValue': 0
                 }
@@ -6775,61 +6655,52 @@
         },
         {
             'tfOpName': 'Reshape',
-            'dlOpName': 'reshape',
             'category': 'transformation',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'shape', 'type': 'number[]' }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'shape', 'type': 'number[]' }
             ]
         },
         {
             'tfOpName': 'Squeeze',
-            'dlOpName': 'squeeze',
             'category': 'transformation',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'axis',
-                    'tfParamNameDeprecated': 'squeeze_dims',
-                    'dlParamName': 'axis',
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [{
+                    'tfName': 'axis',
+                    'tfDeprecatedName': 'squeeze_dims',
+                    'name': 'axis',
                     'type': 'number[]'
-                }
-            ]
+                }]
         },
         {
             'tfOpName': 'SpaceToBatchND',
-            'dlOpName': 'spaceToBatchND',
             'category': 'transformation',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'blockShape', 'type': 'number[]' },
-                { 'tfInputIndex': 2, 'dlParamName': 'paddings', 'type': 'number[]' }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'blockShape', 'type': 'number[]' },
+                { 'start': 2, 'name': 'paddings', 'type': 'number[]' }
             ]
         },
         {
             'tfOpName': 'BatchToSpaceND',
-            'dlOpName': 'batchToSpaceND',
             'category': 'transformation',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' },
-                { 'tfInputIndex': 1, 'dlParamName': 'blockShape', 'type': 'number[]' },
-                { 'tfInputIndex': 2, 'dlParamName': 'crops', 'type': 'number[]' }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+                { 'start': 1, 'name': 'blockShape', 'type': 'number[]' },
+                { 'start': 2, 'name': 'crops', 'type': 'number[]' }
             ]
         },
         {
             'tfOpName': 'DepthToSpace',
-            'dlOpName': 'depthToSpace',
             'category': 'transformation',
-            'params': [
-                { 'tfInputIndex': 0, 'dlParamName': 'x', 'type': 'tensor' }, {
-                    'tfParamName': 'block_size',
-                    'dlParamName': 'blockSize',
-                    'type': 'number'
-                },
-                {
-                    'tfParamName': 'data_format',
-                    'dlParamName': 'dataFormat',
-                    'type': 'string'
-                }
+            'inputs': [
+                { 'start': 0, 'name': 'x', 'type': 'tensor' },
+            ],
+            'attrs': [
+                { 'tfName': 'block_size', 'name': 'blockSize', 'type': 'number' },
+                { 'tfName': 'data_format', 'name': 'dataFormat', 'type': 'string' }
             ]
         }
     ];
@@ -6840,7 +6711,8 @@
 
     var CONTROL_FLOW_OPS = ['Switch', 'Merge', 'Enter', 'Exit', 'NextIteration'];
     var DYNAMIC_SHAPE_OPS = ['NonMaxSuppressionV2', 'NonMaxSuppressionV3', 'Where'];
-    var OperationMapper = (function () {
+    var OperationMapper = /** @class */ (function () {
+        // Loads the op mapping from the JSON file.
         function OperationMapper() {
             var ops = [
                 arithmetic, basicMath, control, convolution, creation, dynamic,
@@ -6854,6 +6726,7 @@
             }, {});
         }
         Object.defineProperty(OperationMapper, "Instance", {
+            // Singleton instance for the mapper
             get: function () {
                 return this._instance || (this._instance = new this());
             },
@@ -6866,6 +6739,8 @@
         OperationMapper.prototype.isDynamicShape = function (node) {
             return DYNAMIC_SHAPE_OPS.some(function (op) { return op === node.op; });
         };
+        // Converts the model from Tensorflow GraphDef to local representation for
+        // deeplearn.js API
         OperationMapper.prototype.transformGraph = function (graph) {
             var _this = this;
             var tfNodes = graph.node;
@@ -6920,56 +6795,66 @@
             }
             var newNode = {
                 name: node.name,
-                op: mapper.dlOpName,
+                op: node.op,
                 category: mapper.category,
                 inputNames: (node.input ||
                     []).map(function (input) { return input.startsWith('^') ? input.substr(1) : input; }),
                 inputs: [],
                 children: [],
-                params: {}
+                inputParams: {},
+                attrParams: {}
             };
-            if (!!mapper.params) {
-                newNode.params = mapper.params.reduce(function (map, param) {
-                    var inputIndex = param.tfInputIndex;
-                    var inputParamLength = param.tfInputParamLength;
-                    var type = param.type;
-                    var value = undefined;
-                    if (inputIndex === undefined) {
+            if (!!mapper.inputs) {
+                newNode.inputParams =
+                    mapper.inputs.reduce(function (map, param) {
+                        map[param.name] = {
+                            type: param.type,
+                            inputIndexStart: param.start,
+                            inputIndexEnd: param.end
+                        };
+                        return map;
+                    }, {});
+            }
+            if (!!mapper.attrs) {
+                newNode.attrParams =
+                    mapper.attrs.reduce(function (map, param) {
+                        var type = param.type;
+                        var value = undefined;
                         switch (param.type) {
                             case 'string':
-                                value = _this.getStringParam(node.attr, param.tfParamName, param.defaultValue);
-                                if (value === undefined && !!param.tfParamNameDeprecated) {
-                                    value = _this.getStringParam(node.attr, param.tfParamNameDeprecated, param.defaultValue);
+                                value = _this.getStringParam(node.attr, param.tfName, param.defaultValue);
+                                if (value === undefined && !!param.tfDeprecatedName) {
+                                    value = _this.getStringParam(node.attr, param.tfDeprecatedName, param.defaultValue);
                                 }
                                 break;
                             case 'number':
-                                value = _this.getNumberParam(node.attr, param.tfParamName, (param.defaultValue || 0));
-                                if (value === undefined && !!param.tfParamNameDeprecated) {
-                                    value = _this.getNumberParam(node.attr, param.tfParamNameDeprecated, param.defaultValue);
+                                value = _this.getNumberParam(node.attr, param.tfName, (param.defaultValue || 0));
+                                if (value === undefined && !!param.tfDeprecatedName) {
+                                    value = _this.getNumberParam(node.attr, param.tfDeprecatedName, param.defaultValue);
                                 }
                                 break;
                             case 'number[]':
-                                value = _this.getNumericArrayParam(node.attr, param.tfParamName, param.defaultValue);
-                                if (value === undefined && !!param.tfParamNameDeprecated) {
-                                    value = _this.getNumericArrayParam(node.attr, param.tfParamNameDeprecated, param.defaultValue);
+                                value = _this.getNumericArrayParam(node.attr, param.tfName, param.defaultValue);
+                                if (value === undefined && !!param.tfDeprecatedName) {
+                                    value = _this.getNumericArrayParam(node.attr, param.tfDeprecatedName, param.defaultValue);
                                 }
                                 break;
                             case 'bool':
-                                value = _this.getBoolParam(node.attr, param.tfParamName, param.defaultValue);
-                                if (value === undefined && !!param.tfParamNameDeprecated) {
-                                    value = _this.getBoolParam(node.attr, param.tfParamNameDeprecated, param.defaultValue);
+                                value = _this.getBoolParam(node.attr, param.tfName, param.defaultValue);
+                                if (value === undefined && !!param.tfDeprecatedName) {
+                                    value = _this.getBoolParam(node.attr, param.tfDeprecatedName, param.defaultValue);
                                 }
                                 break;
                             case 'shape':
-                                value = _this.getTensorShapeParam(node.attr, param.tfParamName, param.defaultValue);
-                                if (value === undefined && !!param.tfParamNameDeprecated) {
-                                    value = _this.getTensorShapeParam(node.attr, param.tfParamNameDeprecated, param.defaultValue);
+                                value = _this.getTensorShapeParam(node.attr, param.tfName, param.defaultValue);
+                                if (value === undefined && !!param.tfDeprecatedName) {
+                                    value = _this.getTensorShapeParam(node.attr, param.tfDeprecatedName, param.defaultValue);
                                 }
                                 break;
                             case 'dtype':
-                                value = _this.getDtypeParam(node.attr, param.tfParamName, param.defaultValue);
-                                if (value === undefined && !!param.tfParamNameDeprecated) {
-                                    value = _this.getDtypeParam(node.attr, param.tfParamNameDeprecated, param.defaultValue);
+                                value = _this.getDtypeParam(node.attr, param.tfName, param.defaultValue);
+                                if (value === undefined && !!param.tfDeprecatedName) {
+                                    value = _this.getDtypeParam(node.attr, param.tfDeprecatedName, param.defaultValue);
                                 }
                                 break;
                             case 'tensor':
@@ -6978,10 +6863,9 @@
                             default:
                                 throw new Error("Unsupported param type: " + param.type + " for op: " + node.op);
                         }
-                    }
-                    map[param.dlParamName] = { value: value, inputIndex: inputIndex, type: type, inputParamLength: inputParamLength };
-                    return map;
-                }, {});
+                        map[param.name] = { value: value, type: type };
+                        return map;
+                    }, {});
             }
             return newNode;
         };
@@ -7040,37 +6924,56 @@
         return OperationMapper;
     }());
 
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     var executeOp = function (node, tensorMap, context) {
         switch (node.op) {
-            case 'add': {
+            case 'BiasAdd':
+            case 'Add': {
                 return [tfc.add(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
-            case 'addN': {
+            case 'AddN': {
                 return [tfc.addN(getParamValue('tensors', node, tensorMap, context))];
             }
-            case 'mod':
+            case 'FloorMod':
+            case 'Mod':
                 return [tfc.mod(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
-            case 'mul':
+            case 'Mul':
                 return [tfc.mul(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
-            case 'div': {
+            case 'RealDiv':
+            case 'Div': {
                 return [tfc.div(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
-            case 'floorDiv': {
+            case 'FloorDiv': {
                 return [tfc.floorDiv(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
-            case 'sub': {
+            case 'Sub': {
                 return [tfc.sub(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
-            case 'minimum': {
+            case 'Minimum': {
                 return [tfc.minimum(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
-            case 'maximum': {
+            case 'Maximum': {
                 return [tfc.maximum(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
-            case 'pow': {
+            case 'Pow': {
                 return [tfc.pow(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
-            case 'squaredDifference': {
+            case 'SquaredDifference': {
                 return [tfc.squaredDifference(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
             default:
@@ -7078,96 +6981,133 @@
         }
     };
 
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     var executeOp$1 = function (node, tensorMap, context) {
         switch (node.op) {
-            case 'abs':
+            case 'Abs':
                 return [tfc.abs(getParamValue('x', node, tensorMap, context))];
-            case 'acos':
+            case 'Acos':
                 return [tfc.acos(getParamValue('x', node, tensorMap, context))];
-            case 'acosh':
+            case 'Acosh':
                 return [tfc.acosh(getParamValue('x', node, tensorMap, context))];
-            case 'asin':
+            case 'Asin':
                 return [tfc.asin(getParamValue('x', node, tensorMap, context))];
-            case 'asinh':
+            case 'Asinh':
                 return [tfc.asinh(getParamValue('x', node, tensorMap, context))];
-            case 'atan':
+            case 'Atan':
                 return [tfc.atan(getParamValue('x', node, tensorMap, context))];
-            case 'atan2':
+            case 'Atan2':
                 return [tfc.atan2(getParamValue('x', node, tensorMap, context), getParamValue('y', node, tensorMap, context))];
-            case 'atanh':
+            case 'Atanh':
                 return [tfc.atanh(getParamValue('x', node, tensorMap, context))];
-            case 'ceil':
+            case 'Ceil':
                 return [tfc.ceil(getParamValue('x', node, tensorMap, context))];
-            case 'cos':
+            case 'Cos':
                 return [tfc.cos(getParamValue('x', node, tensorMap, context))];
-            case 'cosh':
+            case 'Cosh':
                 return [tfc.cosh(getParamValue('x', node, tensorMap, context))];
-            case 'elu':
+            case 'Elu':
                 return [tfc.elu(getParamValue('x', node, tensorMap, context))];
-            case 'erf':
+            case 'Erf':
                 return [tfc.erf(getParamValue('x', node, tensorMap, context))];
-            case 'exp':
+            case 'Exp':
                 return [tfc.exp(getParamValue('x', node, tensorMap, context))];
-            case 'expm1': {
+            case 'Expm1': {
                 return [tfc.expm1(getParamValue('x', node, tensorMap, context))];
             }
-            case 'floor':
+            case 'Floor':
                 return [tfc.floor(getParamValue('x', node, tensorMap, context))];
-            case 'log':
+            case 'Log':
                 return [tfc.log(getParamValue('x', node, tensorMap, context))];
-            case 'log1p': {
+            case 'Log1p': {
                 return [tfc.log1p(getParamValue('x', node, tensorMap, context))];
             }
-            case 'neg':
+            case 'Neg':
                 return [tfc.neg(getParamValue('x', node, tensorMap, context))];
-            case 'reciprocal': {
+            case 'Reciprocal': {
                 return [tfc.reciprocal(getParamValue('x', node, tensorMap, context))];
             }
-            case 'relu':
+            case 'Relu':
                 return [tfc.relu(getParamValue('x', node, tensorMap, context))];
-            case 'round': {
+            case 'Round': {
                 return [tfc.round(getParamValue('x', node, tensorMap, context))];
             }
-            case 'selu':
+            case 'Selu':
                 return [tfc.selu(getParamValue('x', node, tensorMap, context))];
-            case 'sigmoid':
+            case 'Sigmoid':
                 return [tfc.sigmoid(getParamValue('x', node, tensorMap, context))];
-            case 'sin':
+            case 'Sin':
                 return [tfc.sin(getParamValue('x', node, tensorMap, context))];
-            case 'sign': {
+            case 'Sign': {
                 return [tfc.sign(getParamValue('x', node, tensorMap, context))];
             }
-            case 'sinh': {
+            case 'Sinh': {
                 return [tfc.sinh(getParamValue('x', node, tensorMap, context))];
             }
-            case 'softplus': {
+            case 'Softplus': {
                 return [tfc.softplus(getParamValue('x', node, tensorMap, context))];
             }
-            case 'sqrt': {
+            case 'Sqrt': {
                 return [tfc.sqrt(getParamValue('x', node, tensorMap, context))];
             }
-            case 'square': {
+            case 'Square': {
                 return [tfc.square(getParamValue('x', node, tensorMap, context))];
             }
-            case 'tanh': {
+            case 'Tanh': {
                 return [tfc.tanh(getParamValue('x', node, tensorMap, context))];
             }
-            case 'tan':
+            case 'Tan':
                 return [tfc.tan(getParamValue('x', node, tensorMap, context))];
-            case 'clipByValue':
+            case 'Relu6':
+            case 'ClipByValue':
                 return [tfc.clipByValue(getParamValue('x', node, tensorMap, context), getParamValue('clipValueMin', node, tensorMap, context), getParamValue('clipValueMax', node, tensorMap, context))];
-            case 'rsqrt':
-                return [tfc.div(tfc.scalar(1.0, 'float32'), tfc.sqrt(getTensor(node.inputNames[0], tensorMap, context)))];
-            case 'prod':
+            case 'Rsqrt':
+                return [tfc.rsqrt(getTensor(node.inputNames[0], tensorMap, context))];
+            case 'Prod':
                 return [tfc.prod(getParamValue('x', node, tensorMap, context), getParamValue('axes', node, tensorMap, context))];
-            case 'leakyRelu':
+            case 'LeakyRelu':
                 return [tfc.leakyRelu(getParamValue('x', node, tensorMap, context), getParamValue('alpha', node, tensorMap, context))];
             default:
                 throw TypeError("Node type " + node.op + " is not implemented");
         }
     };
 
-    var TensorArray = (function () {
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
+    /**
+     * The TensorArray object keeps an array of Tensors.  It
+     * allows reading from the array and writing to the array.
+     */
+    var TensorArray = /** @class */ (function () {
         function TensorArray(name, dtype, maxSize, elementShape, identicalElementShapes, dynamicSize, clearAfterRead) {
             this.name = name;
             this.dtype = dtype;
@@ -7187,6 +7127,9 @@
             enumerable: true,
             configurable: true
         });
+        /**
+         * Close the current TensorArray.
+         */
         TensorArray.prototype.clearAndClose = function () {
             this.tensors.forEach(function (tensor) { return tensor.tensor.dispose(); });
             this.tensors = [];
@@ -7195,6 +7138,10 @@
         TensorArray.prototype.size = function () {
             return this.tensors.length;
         };
+        /**
+         * Read the value at location index in the TensorArray.
+         * @param index Number the index to read from.
+         */
         TensorArray.prototype.read = function (index) {
             if (this.closed_) {
                 throw new Error("TensorArray " + this.name + " has already been closed.");
@@ -7213,10 +7160,18 @@
             tensorWithState.read = true;
             return tensorWithState.tensor;
         };
+        /**
+         * Helper method to read multiple tensors from the specified indices.
+         */
         TensorArray.prototype.readMany = function (indices) {
             var _this = this;
             return indices.map(function (index) { return _this.read(index); });
         };
+        /**
+         * Write value into the index of the TensorArray.
+         * @param index number the index to write to.
+         * @param tensor
+         */
         TensorArray.prototype.write = function (index, tensor) {
             if (this.closed_) {
                 throw new Error("TensorArray " + this.name + " has already been closed.");
@@ -7228,8 +7183,9 @@
             if (tensor.dtype !== this.dtype) {
                 throw new Error("TensorArray " + this.name + ": Could not write to TensorArray index " + index + ",\n          because the value dtype is " + tensor.dtype + ", but TensorArray dtype is " + this.dtype + ".");
             }
+            // Set the shape for the first time write to unknow shape tensor array
             if (this.size() === 0 &&
-                (!this.elementShape || this.elementShape.length === 0)) {
+                (this.elementShape == null || this.elementShape.length === 0)) {
                 this.elementShape = tensor.shape;
             }
             this.assertShapesMatch(this.elementShape, tensor.shape, "TensorArray " + this.name + ": Could not write to TensorArray index " + index + ".");
@@ -7243,6 +7199,9 @@
             t.written = true;
             this.tensors[index] = t;
         };
+        /**
+         * Helper method to write multiple tensors to the specified indices.
+         */
         TensorArray.prototype.writeMany = function (indices, tensors) {
             var _this = this;
             if (indices.length !== tensors.length) {
@@ -7251,6 +7210,14 @@
             }
             indices.forEach(function (i, index) { return _this.write(i, tensors[index]); });
         };
+        /**
+         * Return selected values in the TensorArray as a packed Tensor. All of
+         * selected values must have been written and their shapes must all match.
+         * @param [indices] number[] Optional. Taking values in [0, max_value). If the
+         *    TensorArray is not dynamic, max_value=size(). If not specified returns
+         *    all tensors in the original order.
+         * @param [dtype]
+         */
         TensorArray.prototype.gather = function (indices, dtype) {
             if (!!dtype && dtype !== this.dtype) {
                 throw new Error("TensorArray dtype is " + this.dtype + " but gather requested dtype " + dtype);
@@ -7264,10 +7231,15 @@
             if (indices.length === 0) {
                 return tfc.tensor([], [0].concat(this.elementShape));
             }
+            // Read all the PersistentTensors into a vector to keep track of
+            // their memory.
             var tensors = this.readMany(indices);
             this.assertShapesMatch(this.elementShape, tensors[0].shape, 'TensorArray shape mismatch: ');
             return tfc.stack(tensors, 0);
         };
+        /**
+         * Return the values in the TensorArray as a concatenated Tensor.
+         */
         TensorArray.prototype.concat = function (dtype) {
             if (!!dtype && dtype !== this.dtype) {
                 throw new Error("TensorArray dtype is " + this.dtype + " but concat requested dtype " + dtype);
@@ -7279,10 +7251,17 @@
             for (var i = 0; i < this.size(); i++) {
                 indices.push(i);
             }
+            // Collect all the tensors from the tensors array.
             var tensors = this.readMany(indices);
             this.assertShapesMatch(this.elementShape, tensors[0].shape, "TensorArray shape mismatch: tensor array shape (" + this.elementShape + ") vs first tensor shape (" + tensors[0].shape + ")");
             return tfc.concat(tensors, 0);
         };
+        /**
+         * Scatter the values of a Tensor in specific indices of a TensorArray.
+         * @param indices nummber[] values in [0, max_value). If the
+         *    TensorArray is not dynamic, max_value=size().
+         * @param tensor Tensor input tensor.
+         */
         TensorArray.prototype.scatter = function (indices, tensor) {
             if (tensor.dtype !== this.dtype) {
                 throw new Error("TensorArray dtype is " + this.dtype + " but tensor has dtype " + tensor.dtype);
@@ -7296,6 +7275,12 @@
             }
             this.writeMany(indices, tfc.unstack(tensor, 0));
         };
+        /**
+         * Split the values of a Tensor into the TensorArray.
+         * @param length number[] with the lengths to use when splitting value along
+         *    its first dimension.
+         * @param tensor Tensor, the tensor to split.
+         */
         TensorArray.prototype.split = function (length, tensor) {
             var _this = this;
             if (tensor.dtype !== this.dtype) {
@@ -7350,6 +7335,22 @@
         return TensorArray;
     }());
 
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     function executeOp$2(node, tensorMap, context) {
         return __awaiter(this, void 0, void 0, function () {
             var _a, pred, data_1, inputName, frameId, data, tensor, input, size, dtype, elementShape, dynamicSize, clearAfterRead, identicalElementShapes, name_1, tensorArray, id, index, writeTensor, writeTensorArray, readId, readIndex, readTensorArray, gatherId, gatherIndices, gatherDtype, gatherTensorArray, scatterId, scatterIndices, scatterTensor, scatterTensorArray, concatId, concatTensorArray, concatDtype, splitId, splitTensor, lengths, splitTensorArray, sizeId, sizeTensorArray, closeId, closeTensorArray;
@@ -7358,49 +7359,51 @@
                     case 0:
                         _a = node.op;
                         switch (_a) {
-                            case 'loopCond': return [3, 1];
-                            case 'switch': return [3, 2];
-                            case 'merge': return [3, 4];
-                            case 'enter': return [3, 5];
-                            case 'exit': return [3, 6];
-                            case 'nextIteration': return [3, 7];
-                            case 'tensorArray': return [3, 8];
-                            case 'tensorArrayWrite': return [3, 9];
-                            case 'tensorArrayRead': return [3, 10];
-                            case 'tensorArrayGather': return [3, 11];
-                            case 'tensorArrayScatter': return [3, 12];
-                            case 'tensorArrayConcat': return [3, 13];
-                            case 'tensorArraySplit': return [3, 14];
-                            case 'tensorArraySize': return [3, 15];
-                            case 'tensorArrayClose': return [3, 16];
+                            case 'LoopCond': return [3 /*break*/, 1];
+                            case 'Switch': return [3 /*break*/, 2];
+                            case 'Merge': return [3 /*break*/, 4];
+                            case 'Enter': return [3 /*break*/, 5];
+                            case 'Exit': return [3 /*break*/, 6];
+                            case 'NextIteration': return [3 /*break*/, 7];
+                            case 'TensorArrayV3': return [3 /*break*/, 8];
+                            case 'TensorArrayWriteV3': return [3 /*break*/, 9];
+                            case 'TensorArrayReadV3': return [3 /*break*/, 10];
+                            case 'TensorArrayGatherV3': return [3 /*break*/, 11];
+                            case 'TensorArrayScatterV3': return [3 /*break*/, 12];
+                            case 'TensorArrayConcatV3': return [3 /*break*/, 13];
+                            case 'TensorArraySplitV3': return [3 /*break*/, 14];
+                            case 'TensorArraySizeV3': return [3 /*break*/, 15];
+                            case 'TensorArrayCloseV3': return [3 /*break*/, 16];
                         }
-                        return [3, 17];
-                    case 1: return [2, [
+                        return [3 /*break*/, 17];
+                    case 1: return [2 /*return*/, [
                             getParamValue('pred', node, tensorMap, context).clone()
                         ]];
                     case 2:
                         pred = getParamValue('pred', node, tensorMap, context);
                         data_1 = getParamValue('data', node, tensorMap, context);
-                        return [4, pred.data()];
-                    case 3: return [2, (_b.sent())[0] ? [undefined, data_1.clone()] :
+                        return [4 /*yield*/, pred.data()];
+                    case 3: 
+                    // Outputs nodes :0 => false, :1 => true
+                    return [2 /*return*/, (_b.sent())[0] ? [undefined, data_1.clone()] :
                             [data_1.clone(), undefined]];
                     case 4:
                         inputName = node.inputNames.find(function (name) { return getTensor(name, tensorMap, context) !== undefined; });
-                        return [2, inputName ? [getTensor(inputName, tensorMap, context).clone()] :
+                        return [2 /*return*/, inputName ? [getTensor(inputName, tensorMap, context).clone()] :
                                 undefined];
                     case 5:
                         frameId = getParamValue('frameName', node, tensorMap, context);
                         data = getParamValue('tensor', node, tensorMap, context);
                         context.enterFrame(frameId);
-                        return [2, [data.clone()]];
+                        return [2 /*return*/, [data.clone()]];
                     case 6:
                         tensor = getParamValue('tensor', node, tensorMap, context);
                         context.exitFrame();
-                        return [2, [tensor.clone()]];
+                        return [2 /*return*/, [tensor.clone()]];
                     case 7:
                         input = getParamValue('tensor', node, tensorMap, context);
                         context.nextIteration();
-                        return [2, [input.clone()]];
+                        return [2 /*return*/, [input.clone()]];
                     case 8:
                         size = getParamValue('size', node, tensorMap, context);
                         dtype = getParamValue('dtype', node, tensorMap, context);
@@ -7411,62 +7414,78 @@
                         name_1 = getParamValue('name', node, tensorMap, context);
                         tensorArray = new TensorArray(name_1, dtype, size, elementShape, identicalElementShapes, dynamicSize, clearAfterRead);
                         context.addTensorArray(tensorArray);
-                        return [2, [tfc.scalar(tensorArray.id), tfc.scalar(1.0)]];
+                        return [2 /*return*/, [tfc.scalar(tensorArray.id), tfc.scalar(1.0)]];
                     case 9:
                         id = getParamValue('tensorArrayId', node, tensorMap, context);
                         index = getParamValue('index', node, tensorMap, context);
                         writeTensor = getParamValue('tensor', node, tensorMap, context);
                         writeTensorArray = context.getTensorArray(id);
                         writeTensorArray.write(index, writeTensor);
-                        return [2, [tfc.scalar(1.0)]];
+                        return [2 /*return*/, [tfc.scalar(1.0)]];
                     case 10:
                         readId = getParamValue('tensorArrayId', node, tensorMap, context);
                         readIndex = getParamValue('index', node, tensorMap, context);
                         readTensorArray = context.getTensorArray(readId);
-                        return [2, [readTensorArray.read(readIndex)]];
+                        return [2 /*return*/, [readTensorArray.read(readIndex)]];
                     case 11:
                         gatherId = getParamValue('tensorArrayId', node, tensorMap, context);
                         gatherIndices = getParamValue('indices', node, tensorMap, context);
                         gatherDtype = getParamValue('dtype', node, tensorMap, context);
                         gatherTensorArray = context.getTensorArray(gatherId);
-                        return [2, [gatherTensorArray.gather(gatherIndices, gatherDtype)]];
+                        return [2 /*return*/, [gatherTensorArray.gather(gatherIndices, gatherDtype)]];
                     case 12:
                         scatterId = getParamValue('tensorArrayId', node, tensorMap, context);
                         scatterIndices = getParamValue('indices', node, tensorMap, context);
                         scatterTensor = getParamValue('tensor', node, tensorMap, context);
                         scatterTensorArray = context.getTensorArray(scatterId);
                         scatterTensorArray.scatter(scatterIndices, scatterTensor);
-                        return [2, [tfc.scalar(1.0)]];
+                        return [2 /*return*/, [tfc.scalar(1.0)]];
                     case 13:
                         concatId = getParamValue('tensorArrayId', node, tensorMap, context);
                         concatTensorArray = context.getTensorArray(concatId);
                         concatDtype = getParamValue('dtype', node, tensorMap, context);
-                        return [2, [concatTensorArray.concat(concatDtype)]];
+                        return [2 /*return*/, [concatTensorArray.concat(concatDtype)]];
                     case 14:
                         splitId = getParamValue('tensorArrayId', node, tensorMap, context);
                         splitTensor = getParamValue('tensor', node, tensorMap, context);
                         lengths = getParamValue('lengths', node, tensorMap, context);
                         splitTensorArray = context.getTensorArray(splitId);
                         splitTensorArray.split(lengths, splitTensor);
-                        return [2, [tfc.scalar(1.0)]];
+                        return [2 /*return*/, [tfc.scalar(1.0)]];
                     case 15:
                         sizeId = getParamValue('tensorArrayId', node, tensorMap, context);
                         sizeTensorArray = context.getTensorArray(sizeId);
-                        return [2, [tfc.scalar(sizeTensorArray.size(), 'int32')]];
+                        return [2 /*return*/, [tfc.scalar(sizeTensorArray.size(), 'int32')]];
                     case 16:
                         closeId = getParamValue('tensorArrayId', node, tensorMap, context);
                         closeTensorArray = context.getTensorArray(closeId);
                         closeTensorArray.clearAndClose();
-                        return [2, []];
+                        return [2 /*return*/, []];
                     case 17: throw TypeError("Node type " + node.op + " is not implemented");
                 }
             });
         });
     }
 
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     var executeOp$3 = function (node, tensorMap, context) {
         switch (node.op) {
-            case 'conv1d': {
+            case 'Conv1D': {
                 var stride = getParamValue('stride', node, tensorMap, context);
                 var pad = getParamValue('pad', node, tensorMap, context);
                 var dataFormat = getParamValue('dataFormat', node, tensorMap, context)
@@ -7474,7 +7493,7 @@
                 var dilation = getParamValue('dilation', node, tensorMap, context);
                 return [tfc.conv1d(getParamValue('x', node, tensorMap, context), getParamValue('filter', node, tensorMap, context), stride, pad, dataFormat, dilation)];
             }
-            case 'conv2d': {
+            case 'Conv2D': {
                 var stride = getParamValue('strides', node, tensorMap, context);
                 var pad = getParamValue('pad', node, tensorMap, context);
                 var dataFormat = getParamValue('dataFormat', node, tensorMap, context)
@@ -7482,13 +7501,15 @@
                 var dilations = getParamValue('dilations', node, tensorMap, context);
                 return [tfc.conv2d(getParamValue('x', node, tensorMap, context), getParamValue('filter', node, tensorMap, context), [stride[1], stride[2]], pad, dataFormat, [dilations[0], dilations[1]])];
             }
-            case 'conv2dTranspose': {
+            case 'Conv2DBackpropInput':
+            case 'Conv2dTranspose': {
                 var shape = getParamValue('outputShape', node, tensorMap, context);
                 var stride = getParamValue('strides', node, tensorMap, context);
                 var pad = getParamValue('pad', node, tensorMap, context);
                 return [tfc.conv2dTranspose(getParamValue('x', node, tensorMap, context), getParamValue('filter', node, tensorMap, context), shape, [stride[1], stride[2]], pad)];
             }
-            case 'depthwiseConv2d': {
+            case 'DepthwiseConv2dNative':
+            case 'DepthwiseConv2d': {
                 var stride = getParamValue('strides', node, tensorMap, context);
                 var pad = getParamValue('pad', node, tensorMap, context);
                 var dilations = getParamValue('dilations', node, tensorMap, context);
@@ -7496,13 +7517,13 @@
                     .toUpperCase();
                 return [tfc.depthwiseConv2d(getParamValue('input', node, tensorMap, context), getParamValue('filter', node, tensorMap, context), [stride[1], stride[2]], pad, dataFormat, [dilations[0], dilations[1]])];
             }
-            case 'avgPool': {
+            case 'AvgPool': {
                 var stride = getParamValue('strides', node, tensorMap, context);
                 var pad = getParamValue('pad', node, tensorMap, context);
                 var kernelSize = getParamValue('kernelSize', node, tensorMap, context);
                 return [tfc.avgPool(getParamValue('x', node, tensorMap, context), [kernelSize[1], kernelSize[2]], [stride[1], stride[2]], pad)];
             }
-            case 'maxPool': {
+            case 'MaxPool': {
                 var stride = getParamValue('strides', node, tensorMap, context);
                 var pad = getParamValue('pad', node, tensorMap, context);
                 var kernelSize = getParamValue('kernelSize', node, tensorMap, context);
@@ -7513,53 +7534,71 @@
         }
     };
 
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     var executeOp$4 = function (node, tensorMap, context) {
         switch (node.op) {
-            case 'fill': {
+            case 'Fill': {
                 var shape = getParamValue('shape', node, tensorMap, context);
                 var dtype = getParamValue('dtype', node, tensorMap, context);
                 var value = getParamValue('value', node, tensorMap, context);
                 return [tfc.fill(shape, value, dtype)];
             }
-            case 'linspace': {
+            case 'LinSpace': {
                 var start = getParamValue('start', node, tensorMap, context);
                 var stop_1 = getParamValue('stop', node, tensorMap, context);
                 var num = getParamValue('num', node, tensorMap, context);
                 return [tfc.linspace(start, stop_1, num)];
             }
-            case 'oneHot': {
+            case 'OneHot': {
                 var indices = getParamValue('indices', node, tensorMap, context);
                 var depth = getParamValue('depth', node, tensorMap, context);
                 var onValue = getParamValue('onValue', node, tensorMap, context);
                 var offValue = getParamValue('offValue', node, tensorMap, context);
                 return [tfc.oneHot(indices, depth, onValue, offValue)];
             }
-            case 'ones': {
+            case 'Ones': {
                 return [tfc.ones(getParamValue('shape', node, tensorMap, context), getParamValue('dtype', node, tensorMap, context))];
             }
-            case 'onesLike': {
+            case 'OnesLike': {
                 return [tfc.onesLike(getParamValue('x', node, tensorMap, context))];
             }
-            case 'randomUniform': {
-                return [tfc.randomUniform(getParamValue('shape', node, tensorMap, context), getParamValue('minval', node, tensorMap, context), getParamValue('maxval', node, tensorMap, context), getParamValue('dtype', node, tensorMap, context))];
+            case 'RandomUniform': {
+                return [tfc.randomUniform(
+                    // tslint:disable-next-line:no-any
+                    getParamValue('shape', node, tensorMap, context), getParamValue('minval', node, tensorMap, context), getParamValue('maxval', node, tensorMap, context), getParamValue('dtype', node, tensorMap, context))];
             }
-            case 'range': {
+            case 'Range': {
                 var start = getParamValue('start', node, tensorMap, context);
                 var stop_2 = getParamValue('stop', node, tensorMap, context);
                 var step = getParamValue('step', node, tensorMap, context);
                 return [tfc.range(start, stop_2, step, getParamValue('dtype', node, tensorMap, context))];
             }
-            case 'truncatedNormal': {
+            case 'TruncatedNormal': {
                 var shape = getParamValue('shape', node, tensorMap, context);
                 var mean = getParamValue('mean', node, tensorMap, context);
                 var stdDev = getParamValue('stdDev', node, tensorMap, context);
                 var seed = getParamValue('seed', node, tensorMap, context);
                 return [tfc.truncatedNormal(shape, mean, stdDev, getParamValue('dtype', node, tensorMap, context), seed)];
             }
-            case 'zeros': {
+            case 'Zeros': {
                 return [tfc.zeros(getParamValue('shape', node, tensorMap, context), getParamValue('dtype', node, tensorMap, context))];
             }
-            case 'zerosLike': {
+            case 'ZerosLike': {
                 return [tfc.zerosLike(getParamValue('x', node, tensorMap, context))];
             }
             default:
@@ -7567,6 +7606,22 @@
         }
     };
 
+    /**
+     * @license
+     * Copyright 2018 Google Inc. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     function executeOp$5(node, tensorMap, context) {
         return __awaiter(this, void 0, void 0, function () {
             var _a, boxes, scores, maxOutputSize, iouThreshold, scoreThreshold;
@@ -7575,32 +7630,49 @@
                     case 0:
                         _a = node.op;
                         switch (_a) {
-                            case 'nonMaxSuppression': return [3, 1];
-                            case 'whereAsync': return [3, 3];
-                            case 'setdiff1dAsync': return [3, 5];
+                            case 'NonMaxSuppressionV3': return [3 /*break*/, 1];
+                            case 'NonMaxSuppressionV2': return [3 /*break*/, 1];
+                            case 'Where': return [3 /*break*/, 3];
+                            case 'ListDiff': return [3 /*break*/, 5];
                         }
-                        return [3, 7];
+                        return [3 /*break*/, 7];
                     case 1:
                         boxes = getParamValue('boxes', node, tensorMap, context);
                         scores = getParamValue('scores', node, tensorMap, context);
                         maxOutputSize = getParamValue('maxOutputSize', node, tensorMap, context);
                         iouThreshold = getParamValue('iouThreshold', node, tensorMap, context);
                         scoreThreshold = getParamValue('scoreThreshold', node, tensorMap, context);
-                        return [4, tfc.image.nonMaxSuppressionAsync(boxes, scores, maxOutputSize, iouThreshold, scoreThreshold)];
-                    case 2: return [2, [_b.sent()]];
-                    case 3: return [4, tfc.whereAsync(getParamValue('condition', node, tensorMap, context))];
-                    case 4: return [2, [_b.sent()]];
-                    case 5: return [4, tfc.setdiff1dAsync(getParamValue('x', node, tensorMap, context), getParamValue('y', node, tensorMap, context))];
-                    case 6: return [2, _b.sent()];
+                        return [4 /*yield*/, tfc.image.nonMaxSuppressionAsync(boxes, scores, maxOutputSize, iouThreshold, scoreThreshold)];
+                    case 2: return [2 /*return*/, [_b.sent()]];
+                    case 3: return [4 /*yield*/, tfc.whereAsync(getParamValue('condition', node, tensorMap, context))];
+                    case 4: return [2 /*return*/, [_b.sent()]];
+                    case 5: return [4 /*yield*/, tfc.setdiff1dAsync(getParamValue('x', node, tensorMap, context), getParamValue('y', node, tensorMap, context))];
+                    case 6: return [2 /*return*/, _b.sent()];
                     case 7: throw TypeError("Node type " + node.op + " is not implemented");
                 }
             });
         });
     }
 
+    /**
+     * @license
+     * Copyright 2018 Google Inc. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     var executeOp$6 = function (node, tensorMap, context) {
         switch (node.op) {
-            case 'topK': {
+            case 'TopKV2': {
                 var x = getParamValue('x', node, tensorMap, context);
                 var k = getParamValue('k', node, tensorMap, context);
                 var sorted = getParamValue('sorted', node, tensorMap, context);
@@ -7612,35 +7684,53 @@
         }
     };
 
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     var executeOp$7 = function (node, tensorMap, context) {
         switch (node.op) {
-            case 'const': {
+            case 'Const': {
                 return tensorMap[node.name];
             }
-            case 'placeholder':
+            case 'PlaceholderWithDefault':
                 var def = getParamValue('default', node, tensorMap, context);
                 return [getTensor(node.name, tensorMap, context) || def];
-            case 'identity':
-            case 'stopGradient':
-            case 'fakeQuantWithMinMaxVars':
+            case 'Placeholder':
+                return [getTensor(node.name, tensorMap, context)];
+            case 'Identity':
+            case 'StopGradient':
+            case 'FakeQuantWithMinMaxVars':// This op is currently ignored.
                 return [
                     getParamValue('x', node, tensorMap, context).clone()
                 ];
-            case 'snapshot':
+            case 'Snapshot':
                 var snapshot = getParamValue('x', node, tensorMap, context);
                 return [snapshot.clone()];
-            case 'shape':
+            case 'Shape':
                 return [tfc.tensor1d(getParamValue('x', node, tensorMap, context).shape, 'int32')];
-            case 'shapeN':
+            case 'ShapeN':
                 return getParamValue('x', node, tensorMap, context)
                     .map(function (t) { return tfc.tensor1d(t.shape); });
-            case 'size':
+            case 'Size':
                 return [tfc.scalar(getParamValue('x', node, tensorMap, context).size, 'int32')];
-            case 'rank':
+            case 'Rank':
                 return [tfc.scalar(getParamValue('x', node, tensorMap, context).rank, 'int32')];
-            case 'noop':
+            case 'NoOp':
                 return [];
-            case 'print':
+            case 'Print':
                 var input = getParamValue('x', node, tensorMap, context);
                 var data = getParamValue('data', node, tensorMap, context);
                 var message = getParamValue('message', node, tensorMap, context);
@@ -7649,7 +7739,7 @@
                     'usually used for debugging, which slows down performance.');
                 console.log(message);
                 for (var i = 0; i < data.length; i++) {
-                    console.log(Array.prototype.slice.call(data[0].dataSync()).slice(0, summarize));
+                    console.log(Array.prototype.slice.call(data[i].dataSync()).slice(0, summarize));
                 }
                 return [input];
             default:
@@ -7657,21 +7747,37 @@
         }
     };
 
+    /**
+     * @license
+     * Copyright 2018 Google Inc. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     var executeOp$8 = function (node, tensorMap, context) {
         switch (node.op) {
-            case 'resizeBilinear': {
+            case 'ResizeBilinear': {
                 var images = getParamValue('images', node, tensorMap, context);
                 var size = getParamValue('size', node, tensorMap, context);
                 var alignCorners = getParamValue('alignCorners', node, tensorMap, context);
                 return [tfc.image.resizeBilinear(images, [size[0], size[1]], alignCorners)];
             }
-            case 'resizeNearestNeighbor': {
+            case 'ResizeNearestNeighbor': {
                 var images = getParamValue('images', node, tensorMap, context);
                 var size = getParamValue('size', node, tensorMap, context);
                 var alignCorners = getParamValue('alignCorners', node, tensorMap, context);
                 return [tfc.image.resizeNearestNeighbor(images, [size[0], size[1]], alignCorners)];
             }
-            case 'cropAndResize': {
+            case 'CropAndResize': {
                 var image = getParamValue('image', node, tensorMap, context);
                 var boxes = getParamValue('boxes', node, tensorMap, context);
                 var boxInd = getParamValue('boxInd', node, tensorMap, context);
@@ -7685,36 +7791,52 @@
         }
     };
 
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     var executeOp$9 = function (node, tensorMap, context) {
         switch (node.op) {
-            case 'equal': {
+            case 'Equal': {
                 return [tfc.equal(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
-            case 'notEqual': {
+            case 'NotEqual': {
                 return [tfc.notEqual(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
-            case 'greater': {
+            case 'Greater': {
                 return [tfc.greater(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
-            case 'greaterEqual': {
+            case 'GreaterEqual': {
                 return [tfc.greaterEqual(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
-            case 'less': {
+            case 'Less': {
                 return [tfc.less(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
-            case 'lessEqual': {
+            case 'LessEqual': {
                 return [tfc.lessEqual(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
-            case 'logicalAnd': {
+            case 'LogicalAnd': {
                 return [tfc.logicalAnd(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
-            case 'logicalNot': {
+            case 'LogicalNot': {
                 return [tfc.logicalNot(getParamValue('a', node, tensorMap, context))];
             }
-            case 'logicalOr': {
+            case 'LogicalOr': {
                 return [tfc.logicalOr(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
-            case 'where': {
+            case 'Select': {
                 return [tfc.where(getParamValue('condition', node, tensorMap, context), getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context))];
             }
             default:
@@ -7722,32 +7844,66 @@
         }
     };
 
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     var executeOp$10 = function (node, tensorMap, context) {
         switch (node.op) {
-            case 'matMul':
+            case 'BatchMatMul':
+            case 'MatMul':
                 return [tfc.matMul(getParamValue('a', node, tensorMap, context), getParamValue('b', node, tensorMap, context), getParamValue('transposeA', node, tensorMap, context), getParamValue('transposeB', node, tensorMap, context))];
-            case 'transpose':
+            case 'Transpose':
                 return [tfc.transpose(getParamValue('x', node, tensorMap, context), getParamValue('perm', node, tensorMap, context))];
             default:
                 throw TypeError("Node type " + node.op + " is not implemented");
         }
     };
 
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     var executeOp$11 = function (node, tensorMap, context) {
         switch (node.op) {
-            case 'batchNormalization': {
-                return [tfc.batchNormalization(getParamValue('x', node, tensorMap, context), getParamValue('mean', node, tensorMap, context), getParamValue('variance', node, tensorMap, context), getParamValue('epsilon', node, tensorMap, context), getParamValue('scale', node, tensorMap, context), getParamValue('offset', node, tensorMap, context))];
+            case 'FusedBatchNorm':
+            case 'FusedBatchNormV2': {
+                return [tfc.batchNorm(getParamValue('x', node, tensorMap, context), getParamValue('mean', node, tensorMap, context), getParamValue('variance', node, tensorMap, context), getParamValue('offset', node, tensorMap, context), getParamValue('scale', node, tensorMap, context), getParamValue('epsilon', node, tensorMap, context))];
             }
-            case 'localResponseNormalization': {
+            case 'LRN': {
                 return [tfc.localResponseNormalization(getParamValue('x', node, tensorMap, context), getParamValue('radius', node, tensorMap, context), getParamValue('bias', node, tensorMap, context), getParamValue('alpha', node, tensorMap, context), getParamValue('beta', node, tensorMap, context))];
             }
-            case 'softmax': {
+            case 'Softmax': {
                 return [tfc.softmax(getParamValue('x', node, tensorMap, context))];
             }
-            case 'logSoftmax': {
+            case 'LogSoftmax': {
                 return [tfc.logSoftmax(getParamValue('x', node, tensorMap, context))];
             }
-            case 'sparseToDense': {
+            case 'SparseToDense': {
                 return [tfc.sparseToDense(getParamValue('sparseIndices', node, tensorMap, context), getParamValue('outputShape', node, tensorMap, context), getParamValue('sparseValues', node, tensorMap, context), getParamValue('defaultValue', node, tensorMap, context))];
             }
             default:
@@ -7755,47 +7911,63 @@
         }
     };
 
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     var executeOp$12 = function (node, tensorMap, context) {
         switch (node.op) {
-            case 'max': {
+            case 'Max': {
                 var axis = getParamValue('axis', node, tensorMap, context);
                 var keepDims = getParamValue('keepDims', node, tensorMap, context);
                 return [tfc.max(getParamValue('x', node, tensorMap, context), axis, keepDims)];
             }
-            case 'mean': {
+            case 'Mean': {
                 var axis = getParamValue('axis', node, tensorMap, context);
                 var keepDims = getParamValue('keepDims', node, tensorMap, context);
                 return [tfc.mean(getParamValue('x', node, tensorMap, context), axis, keepDims)];
             }
-            case 'min': {
+            case 'Min': {
                 var axis = getParamValue('axis', node, tensorMap, context);
                 var keepDims = getParamValue('keepDims', node, tensorMap, context);
                 return [tfc.min(getParamValue('x', node, tensorMap, context), axis, keepDims)];
             }
-            case 'sum': {
+            case 'Sum': {
                 var axis = getParamValue('axis', node, tensorMap, context);
                 var keepDims = getParamValue('keepDims', node, tensorMap, context);
                 return [tfc.sum(getParamValue('x', node, tensorMap, context), axis, keepDims)];
             }
-            case 'all': {
+            case 'All': {
                 var axis = getParamValue('axis', node, tensorMap, context);
                 var keepDims = getParamValue('keepDims', node, tensorMap, context);
                 return [tfc.all(getParamValue('x', node, tensorMap, context), axis, keepDims)];
             }
-            case 'any': {
+            case 'Any': {
                 var axis = getParamValue('axis', node, tensorMap, context);
                 var keepDims = getParamValue('keepDims', node, tensorMap, context);
                 return [tfc.any(getParamValue('x', node, tensorMap, context), axis, keepDims)];
             }
-            case 'argMax': {
+            case 'ArgMax': {
                 var axis = getParamValue('axis', node, tensorMap, context);
                 return [tfc.argMax(getParamValue('x', node, tensorMap, context), axis)];
             }
-            case 'argMin': {
+            case 'ArgMin': {
                 var axis = getParamValue('axis', node, tensorMap, context);
                 return [tfc.argMin(getParamValue('x', node, tensorMap, context), axis)];
             }
-            case 'prod': {
+            case 'Prod': {
                 var axis = getParamValue('axis', node, tensorMap, context);
                 var keepDims = getParamValue('keepDims', node, tensorMap, context);
                 return [tfc.prod(getParamValue('x', node, tensorMap, context), axis, keepDims)];
@@ -7805,30 +7977,51 @@
         }
     };
 
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     var executeOp$13 = function (node, tensorMap, context) {
         switch (node.op) {
-            case 'concat': {
+            case 'ConcatV2':
+            case 'Concat': {
                 var axis = getParamValue('axis', node, tensorMap, context);
                 var inputs = getParamValue('tensors', node, tensorMap, context);
                 return [tfc.concat(inputs, axis)];
             }
-            case 'gather': {
+            case 'GatherV2':
+            case 'Gather': {
                 var axis = getParamValue('axis', node, tensorMap, context);
                 var input = getParamValue('x', node, tensorMap, context);
                 var indices = getParamValue('indices', node, tensorMap, context);
-                return [tfc.gather(input, indices, axis)];
+                return [tfc.gather(input, indices.asType('int32'), axis)];
             }
-            case 'reverse': {
+            case 'ReverseV2':
+            case 'Reverse': {
                 var axis = getParamValue('axis', node, tensorMap, context);
                 var input = getParamValue('x', node, tensorMap, context);
                 return [tfc.reverse(input, axis)];
             }
-            case 'slice': {
+            case 'Slice': {
+                // tslint:disable-next-line:no-any
                 var begin = getParamValue('begin', node, tensorMap, context);
+                // tslint:disable-next-line:no-any
                 var size = getParamValue('size', node, tensorMap, context);
                 return [tfc.slice(getParamValue('x', node, tensorMap, context), begin, size)];
             }
-            case 'stridedSlice': {
+            case 'StridedSlice': {
                 var begin = getParamValue('begin', node, tensorMap, context);
                 var end = getParamValue('end', node, tensorMap, context);
                 var strides = getParamValue('strides', node, tensorMap, context);
@@ -7847,10 +8040,11 @@
                 }
                 return [tfc.stridedSlice(tensor, begin, end, strides, beginMask, endMask, ellipsisMask, newAxisMask, shrinkAxisMask)];
             }
-            case 'stack': {
+            case 'Pack': {
                 return tfc.tidy(function () {
                     var axis = getParamValue('axis', node, tensorMap, context);
                     var tensors = getParamValue('tensors', node, tensorMap, context);
+                    // Reshape the tensors to the first tensor's shape if they don't match.
                     var shape = tensors[0].shape;
                     var squeezedShape = tensors[0].squeeze().shape;
                     var mapped = tensors.map(function (tensor) {
@@ -7864,57 +8058,76 @@
                     return [tfc.stack(mapped, axis)];
                 });
             }
-            case 'unstack': {
+            case 'Unpack': {
                 return tfc.tidy(function () {
                     var axis = getParamValue('axis', node, tensorMap, context);
                     var tensor = getParamValue('tensor', node, tensorMap, context);
                     return tfc.unstack(tensor, axis);
                 });
             }
-            case 'tile': {
+            case 'Tile': {
                 var reps = getParamValue('reps', node, tensorMap, context);
                 return [tfc.tile(getParamValue('x', node, tensorMap, context), reps)];
             }
-            case 'split': {
+            case 'Split':
+            case 'SplitV': {
                 var axis = getParamValue('axis', node, tensorMap, context);
                 var numOrSizeSplits = getParamValue('numOrSizeSplits', node, tensorMap, context);
                 return tfc.split(getParamValue('x', node, tensorMap, context), numOrSizeSplits, axis);
             }
-            case 'scatterNd': {
+            case 'ScatterNd': {
                 var indices = getParamValue('indices', node, tensorMap, context);
                 var values = getParamValue('values', node, tensorMap, context);
                 var shape = getParamValue('shape', node, tensorMap, context);
                 return [tfc.scatterND(indices, values, shape)];
             }
-            case 'gatherNd': {
+            case 'GatherNd': {
                 var x = getParamValue('x', node, tensorMap, context);
                 var indices = getParamValue('indices', node, tensorMap, context);
                 return [tfc.gatherND(x, indices)];
             }
-            case 'sparseToDense': {
+            case 'SparseToDense': {
                 var indices = getParamValue('sparseIndices', node, tensorMap, context);
                 var shape = getParamValue('outputShape', node, tensorMap, context);
                 var sparseValues = getParamValue('sparseValues', node, tensorMap, context);
                 var defaultValue = getParamValue('defaultValue', node, tensorMap, context);
-                return [tfc.sparseToDense(indices, sparseValues, shape, defaultValue)];
+                return [tfc.sparseToDense(indices, sparseValues, shape, sparseValues.dtype === defaultValue.dtype ?
+                        defaultValue :
+                        defaultValue.asType(sparseValues.dtype))];
             }
             default:
                 throw TypeError("Node type " + node.op + " is not implemented");
         }
     };
 
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     var executeOp$14 = function (node, tensorMap, context) {
         switch (node.op) {
-            case 'fft': {
+            case 'FFT': {
                 return [tfc.fft(getParamValue('x', node, tensorMap, context))];
             }
-            case 'ifft': {
+            case 'IFFT': {
                 return [tfc.ifft(getParamValue('x', node, tensorMap, context))];
             }
-            case 'rfft': {
+            case 'RFFT': {
                 return [tfc.rfft(getParamValue('x', node, tensorMap, context))];
             }
-            case 'irfft': {
+            case 'IRFFT': {
                 return [tfc.irfft(getParamValue('x', node, tensorMap, context))];
             }
             default:
@@ -7922,36 +8135,53 @@
         }
     };
 
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     var executeOp$15 = function (node, tensorMap, context) {
         switch (node.op) {
-            case 'cast': {
+            case 'Cast': {
                 return [tfc.cast(getParamValue('x', node, tensorMap, context), getParamValue('dtype', node, tensorMap, context))];
             }
-            case 'expandDims': {
+            case 'ExpandDims': {
                 var axis = getParamValue('axis', node, tensorMap, context);
                 return [tfc.expandDims(getParamValue('x', node, tensorMap, context), axis)];
             }
-            case 'squeeze': {
+            case 'Squeeze': {
                 var axis = getParamValue('axis', node, tensorMap, context);
                 return [tfc.squeeze(getParamValue('x', node, tensorMap, context), axis)];
             }
-            case 'reshape': {
+            case 'Reshape': {
                 return [tfc.reshape(getParamValue('x', node, tensorMap, context), getParamValue('shape', node, tensorMap, context))];
             }
-            case 'pad': {
+            case 'PadV2':
+            case 'Pad': {
                 return [tfc.pad(getParamValue('x', node, tensorMap, context), split(getParamValue('padding', node, tensorMap, context), 2), getParamValue('constantValue', node, tensorMap, context))];
             }
-            case 'spaceToBatchND': {
+            case 'SpaceToBatchND': {
                 var blockShape = getParamValue('blockShape', node, tensorMap, context);
                 var paddings = split(getParamValue('paddings', node, tensorMap, context), 2);
                 return [tfc.spaceToBatchND(getParamValue('x', node, tensorMap, context), blockShape, paddings)];
             }
-            case 'batchToSpaceND': {
+            case 'BatchToSpaceND': {
                 var blockShape = getParamValue('blockShape', node, tensorMap, context);
                 var crops = split(getParamValue('crops', node, tensorMap, context), 2);
                 return [tfc.batchToSpaceND(getParamValue('x', node, tensorMap, context), blockShape, crops)];
             }
-            case 'depthToSpace': {
+            case 'DepthToSpace': {
                 var blockSize = getParamValue('blockSize', node, tensorMap, context);
                 var dataFormat = getParamValue('dataFormat', node, tensorMap, context).toUpperCase();
                 return [tfc.depthToSpace(getParamValue('x', node, tensorMap, context), blockSize, dataFormat)];
@@ -7961,46 +8191,82 @@
         }
     };
 
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
+    /**
+     * Executes the op defined by the node object.
+     * @param node
+     * @param tensorMap contains tensors for executed nodes and weights
+     */
     function executeOp$16(node, tensorMap, context) {
-        switch (node.category) {
-            case 'arithmetic':
-                return executeOp(node, tensorMap, context);
-            case 'basic_math':
-                return executeOp$1(node, tensorMap, context);
-            case 'control':
-                return executeOp$2(node, tensorMap, context);
-            case 'convolution':
-                return executeOp$3(node, tensorMap, context);
-            case 'creation':
-                return executeOp$4(node, tensorMap, context);
-            case 'dynamic':
-                return executeOp$5(node, tensorMap, context);
-            case 'evaluation':
-                return executeOp$6(node, tensorMap, context);
-            case 'image':
-                return executeOp$8(node, tensorMap, context);
-            case 'graph':
-                return executeOp$7(node, tensorMap, context);
-            case 'logical':
-                return executeOp$9(node, tensorMap, context);
-            case 'matrices':
-                return executeOp$10(node, tensorMap, context);
-            case 'normalization':
-                return executeOp$11(node, tensorMap, context);
-            case 'reduction':
-                return executeOp$12(node, tensorMap, context);
-            case 'slice_join':
-                return executeOp$13(node, tensorMap, context);
-            case 'spectral':
-                return executeOp$14(node, tensorMap, context);
-            case 'transformation':
-                return executeOp$15(node, tensorMap, context);
-            default:
-                throw TypeError("Node type " + node.op + " is not implemented");
+        var value = (function (node, tensorMap, context) {
+            switch (node.category) {
+                case 'arithmetic':
+                    return executeOp(node, tensorMap, context);
+                case 'basic_math':
+                    return executeOp$1(node, tensorMap, context);
+                case 'control':
+                    return executeOp$2(node, tensorMap, context);
+                case 'convolution':
+                    return executeOp$3(node, tensorMap, context);
+                case 'creation':
+                    return executeOp$4(node, tensorMap, context);
+                case 'dynamic':
+                    return executeOp$5(node, tensorMap, context);
+                case 'evaluation':
+                    return executeOp$6(node, tensorMap, context);
+                case 'image':
+                    return executeOp$8(node, tensorMap, context);
+                case 'graph':
+                    return executeOp$7(node, tensorMap, context);
+                case 'logical':
+                    return executeOp$9(node, tensorMap, context);
+                case 'matrices':
+                    return executeOp$10(node, tensorMap, context);
+                case 'normalization':
+                    return executeOp$11(node, tensorMap, context);
+                case 'reduction':
+                    return executeOp$12(node, tensorMap, context);
+                case 'slice_join':
+                    return executeOp$13(node, tensorMap, context);
+                case 'spectral':
+                    return executeOp$14(node, tensorMap, context);
+                case 'transformation':
+                    return executeOp$15(node, tensorMap, context);
+                default:
+                    throw TypeError("Node type " + node.op + " is not implemented");
+            }
+        })(node, tensorMap, context);
+        if (value instanceof Promise) {
+            return value.then(function (data) { return [].concat(data); });
         }
+        return [].concat(value);
     }
 
-    var ExecutionContext = (function () {
+    /**
+     * ExecutionContext captures the runtime environment of the node. It keeps
+     * track of the current frame and iteration for the control flow ops.
+     *
+     * For example, typical Dynamic RNN model may contain loops, for which
+     * TensorFlow will generate graphs with Enter/Exit nodes to control the
+     * current execution frame, and NextIteration Nodes for iteration id increment.
+     * For model with branch logic, TensorFLow will generate Switch/Merge ops.
+     */
+    var ExecutionContext = /** @class */ (function () {
         function ExecutionContext(weightMap, tensorArrayMap) {
             this.weightMap = weightMap;
             this.tensorArrayMap = tensorArrayMap;
@@ -8016,6 +8282,11 @@
             get: function () {
                 return this.contexts;
             },
+            /**
+             * Set the current context
+             * @param contexts: ExecutionContextInfo[] the current path of execution
+             * frames
+             */
             set: function (contexts) {
                 if (this.contexts !== contexts) {
                     this.contexts = contexts;
@@ -8026,6 +8297,9 @@
             configurable: true
         });
         Object.defineProperty(ExecutionContext.prototype, "currentContextId", {
+            /**
+             * Returns the current context in string format.
+             */
             get: function () {
                 return this._currentContextIds[0];
             },
@@ -8033,6 +8307,10 @@
             configurable: true
         });
         Object.defineProperty(ExecutionContext.prototype, "currentContextIds", {
+            /**
+             * Returns the current context and all parent contexts in string format.
+             * This allow access to the nodes in the current and parent frames.
+             */
             get: function () {
                 return this._currentContextIds;
             },
@@ -8057,6 +8335,10 @@
                     .join('/') :
                 '';
         };
+        /**
+         * Enter a new frame, a new context is pushed on the current context list.
+         * @param frameId new frame id
+         */
         ExecutionContext.prototype.enterFrame = function (frameId) {
             if (this.contexts) {
                 this.lastId++;
@@ -8065,6 +8347,10 @@
                 this._currentContextIds.unshift(this.contextIdforContexts(this.contexts));
             }
         };
+        /**
+         * Exit the current frame, the last context is removed from the current
+         * context list.
+         */
         ExecutionContext.prototype.exitFrame = function () {
             if (this.contexts && this.contexts.length > 1) {
                 this.contexts = this.contexts.slice();
@@ -8075,6 +8361,10 @@
                 throw new Error('Cannot exit frame, the context is empty');
             }
         };
+        /**
+         * Enter the next iteration of a loop, the iteration id of last context is
+         * increased.
+         */
         ExecutionContext.prototype.nextIteration = function () {
             if (this.contexts && this.contexts.length > 0) {
                 this.contexts = this.contexts.slice();
@@ -8101,7 +8391,23 @@
         return ExecutionContext;
     }());
 
-    var GraphExecutor = (function () {
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
+    var GraphExecutor = /** @class */ (function () {
         function GraphExecutor(graph) {
             this.graph = graph;
             this.compiledMap = new Map();
@@ -8128,9 +8434,11 @@
                 return this.placeholders.map(function (node) {
                     return {
                         name: node.name,
-                        shape: node.params['shape'] ? node.params['shape'].value :
+                        shape: node.attrParams['shape'] ?
+                            node.attrParams['shape'].value :
                             undefined,
-                        dtype: node.params['dtype'] ? node.params['dtype'].value :
+                        dtype: node.attrParams['dtype'] ?
+                            node.attrParams['dtype'].value :
                             undefined
                     };
                 });
@@ -8143,9 +8451,11 @@
                 return this._outputs.map(function (node) {
                     return {
                         name: node.name,
-                        shape: node.params['shape'] ? node.params['shape'].value :
+                        shape: node.attrParams['shape'] ?
+                            node.attrParams['shape'].value :
                             undefined,
-                        dtype: node.params['dtype'] ? node.params['dtype'].value :
+                        dtype: node.attrParams['dtype'] ?
+                            node.attrParams['dtype'].value :
                             undefined
                     };
                 });
@@ -8181,7 +8491,13 @@
             enumerable: true,
             configurable: true
         });
+        /**
+         * Compiles the inference graph to generate the topology order of op nodes,
+         * cache the result for inference execution.
+         */
         GraphExecutor.prototype.compile = function (startNodes) {
+            // Do not compile for graph with control flow, since the execution order
+            // requires runtime evaluation of the output tensors.
             if (this.graph.withControlFlow || this.graph.withDynamicShape) {
                 return;
             }
@@ -8189,6 +8505,7 @@
             var inputs = startNodes || this.graph.placeholders;
             var sortedNodeNames = inputs.map(function (node) { return node.name; }).sort();
             var nameKey = sortedNodeNames.join(this.SEPERATOR);
+            // do nothing is the compiled graph cache contains the input.
             if (this.compiledMap.get(nameKey)) {
                 return;
             }
@@ -8209,6 +8526,15 @@
             }
             this.compiledMap.set(nameKey, compiledOrder);
         };
+        /**
+         * Executes the inference for given input tensors.
+         * @param inputs Tensor map for the model inputs, keyed by the input node
+         * names.
+         * @param outputs output node name from the Tensorflow model, if no outputs
+         * are specified, the default outputs of the model would be used. You can
+         * inspect intermediate nodes of the model by adding them to the outputs
+         * array.
+         */
         GraphExecutor.prototype.execute = function (inputs, strictInputCheck, outputs) {
             var _this = this;
             if (strictInputCheck === void 0) { strictInputCheck = true; }
@@ -8232,6 +8558,7 @@
                             executeOp$16(node, tensorMap, context);
                         _this.checkTensorForDisposal(node.name, node, tensorMap, context, tensorsToKeep, outputNames, intermediateTensorConsumerCount);
                     }
+                    // stop the execution if all outputs are found.
                     if (outputNames.every(function (name) { return !!tensorMap[name]; })) {
                         break;
                     }
@@ -8247,6 +8574,8 @@
             return new Set(ids);
         };
         GraphExecutor.prototype.checkTensorForDisposal = function (nodeName, node, tensorMap, context, tensorsToKeep, outputNames, intermediateTensorConsumerCount) {
+            // Skip output nodes and any control flow nodes, since its dependency is
+            // tricky to track correctly.
             if (node.category === 'control' || outputNames.indexOf(nodeName) !== -1) {
                 return;
             }
@@ -8258,6 +8587,8 @@
                 }
             });
             node.inputs.forEach(function (input) {
+                // Skip any control flow nodes, since its dependency is tricky to track
+                // correctly.
                 if (input.category !== 'control') {
                     var tensors = getTensorsForCurrentContenxt(input.name, tensorMap, context);
                     if (tensors != null) {
@@ -8269,6 +8600,8 @@
                                     delete intermediateTensorConsumerCount[tensor.id];
                                 }
                                 else if (count != null) {
+                                    // only intermediate nodes has count set, inputs and weights are
+                                    // not.
                                     intermediateTensorConsumerCount[tensor.id]--;
                                 }
                             }
@@ -8277,6 +8610,15 @@
                 }
             });
         };
+        /**
+         * Executes the inference for given input tensors in Async fashion.
+         * @param inputs Tensor map for the model inputs, keyed by the input node
+         * names.
+         * @param outputs output node name from the Tensorflow model, if no outputs
+         * are specified, the default outputs of the model would be used. You can
+         * inspect intermediate nodes of the model by adding them to the outputs
+         * array.
+         */
         GraphExecutor.prototype.executeAsync = function (inputs, outputs) {
             return __awaiter(this, void 0, void 0, function () {
                 var _this = this;
@@ -8289,15 +8631,13 @@
                             tensorArrayMap = {};
                             context = new ExecutionContext(this._weightMap, tensorArrayMap);
                             outputNames = this.calculateOutputs(outputs);
-                            return [4, this.executeWithControlFlow(inputs, context, outputNames)];
+                            return [4 /*yield*/, this.executeWithControlFlow(inputs, context, outputNames)];
                         case 1:
                             tensors = _a.sent();
                             results = this.findOutputs(tensors, context, outputs);
                             outputIds = Object.keys(results).map(function (key) { return results[key].id; });
                             inputIdArray = Object.keys(inputs).map(function (key) { return inputs[key].map(function (input) { return input.id; }); });
                             inputIds = [].concat.apply([], inputIdArray);
-                            var count = 0;
-                            console.log(tf.memory().numTensors);
                             Object.keys(tensors).forEach(function (key) {
                                 var tensorArray = tensors[key];
                                 tensorArray.forEach(function (tensor) {
@@ -8306,17 +8646,20 @@
                                         inputIds.indexOf(tensor.id) === -1 &&
                                         _this.weightIds.indexOf(tensor.id) === -1) {
                                         tensor.dispose();
-                                        count ++;
                                     }
-                                });                                
+                                });
                             });
-                            console.log(count);
-                            console.log(tf.memory().numTensors);
-                            return [2, results];
+                            return [2 /*return*/, results];
                     }
                 });
             });
         };
+        /**
+         * When there are control flow nodes in the graph, the graph execution use
+         * ExecutionContext to keep track of the frames and loop iterators.
+         * @param inputs placeholder tensors for the graph.
+         * @param context the execution context object for current execution.
+         */
         GraphExecutor.prototype.executeWithControlFlow = function (inputs, context, outputNames) {
             return __awaiter(this, void 0, void 0, function () {
                 var _this = this;
@@ -8335,13 +8678,13 @@
                             added = {};
                             _a.label = 1;
                         case 1:
-                            if (!(stack.length > 0)) return [3, 3];
+                            if (!(stack.length > 0)) return [3 /*break*/, 3];
                             promises = this.processStack(inputNodes, stack, context, tensorMap, added, tensorsToKeep, outputNames, intermediateTensorConsumerCount);
-                            return [4, Promise.all(promises)];
+                            return [4 /*yield*/, Promise.all(promises)];
                         case 2:
                             _a.sent();
-                            return [3, 1];
-                        case 3: return [2, tensorMap];
+                            return [3 /*break*/, 1];
+                        case 3: return [2 /*return*/, tensorMap];
                     }
                 });
             });
@@ -8353,10 +8696,14 @@
                 var item = stack.pop();
                 context.currentContext = item.contexts;
                 var nodeName = '';
-                if (item.node.op === 'enter' &&
+                // The tensor of the Enter op with isConstant set should be set
+                // in the parent scope, so it will be available as constant for the
+                // whole loop.
+                if (item.node.op === 'Enter' &&
                     getParamValue('isConstant', item.node, tensorMap, context)) {
                     nodeName = getNodeNameAndIndex(item.node.name, context)[0];
                 }
+                // only process nodes that are not provided as input nodes.
                 if (inputNodes.indexOf(item.node) === -1) {
                     var tensors = executeOp$16(item.node, tensorMap, context);
                     if (!nodeName) {
@@ -8392,7 +8739,8 @@
             node.children.forEach(function (childNode) {
                 var nodeName = getNodeNameAndIndex(childNode.name, context)[0];
                 if (!added[nodeName]) {
-                    if (childNode.op === 'merge') {
+                    // Merge op can be pushed if any of its inputs has value.
+                    if (childNode.op === 'Merge') {
                         if (childNode.inputNames.some(function (name) {
                             return !!getTensor(name, tensorMap, context);
                         })) {
@@ -8422,6 +8770,9 @@
                 return map;
             }, {});
         };
+        /**
+         * Releases the memory used by the weight tensors.
+         */
         GraphExecutor.prototype.dispose = function () {
             var _this = this;
             Object.keys(this.weightMap)
@@ -8431,18 +8782,20 @@
             if (strictInputCheck === void 0) { strictInputCheck = true; }
             this.placeholders.forEach(function (node) {
                 var inputTensors = inputs[node.name];
+                // do nothing if not strict input check and input tensors is not for
+                // the placeholders.
                 if (!strictInputCheck && !inputTensors) {
                     return;
                 }
                 var input = inputTensors[0];
-                if (node.params['shape'] && node.params['shape'].value) {
-                    var shape_1 = node.params['shape'].value;
+                if (node.attrParams['shape'] && node.attrParams['shape'].value) {
+                    var shape_1 = node.attrParams['shape'].value;
                     var match = shape_1.length === input.shape.length &&
                         input.shape.every(function (dim, index) { return shape_1[index] === -1 || shape_1[index] === dim; });
                     tfc.util.assert(match, "The shape of dict['" + node.name + "'] provided in model.execute(dict) must be [" + shape_1 + "], but was [" + input.shape + "]");
                 }
-                if (node.params['dtype'] && node.params['dtype'].value) {
-                    tfc.util.assert(input.dtype === node.params['dtype'].value, "The dtype of dict['" + node.name + "'] provided in model.execute(dict) must be " + node.params['dtype'].value + ", but was " + input.dtype);
+                if (node.attrParams['dtype'] && node.attrParams['dtype'].value) {
+                    tfc.util.assert(input.dtype === node.attrParams['dtype'].value, "The dtype of dict['" + node.name + "'] provided in model.execute(dict) must be " + node.attrParams['dtype'].value + ", but was " + input.dtype);
                 }
             });
         };
@@ -8491,18 +8844,51 @@
         return GraphExecutor;
     }());
 
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
     var TFHUB_SEARCH_PARAM = '?tfjs-format=file';
     var DEFAULT_MODEL_NAME = 'tensorflowjs_model.pb';
     var DEFAULT_MANIFEST_NAME = 'weights_manifest.json';
-    var FrozenModel = (function () {
-        function FrozenModel(modelUrl, weightManifestUrl, requestOption, weightPrefix) {
+    /**
+     * A `tf.FrozenModel` is a directed, acyclic graph of built from
+     * SavedModel GraphDef and allows inference exeuction.
+     */
+    /** @doc {heading: 'Models', subheading: 'Classes'} */
+    var FrozenModel = /** @class */ (function () {
+        /**
+         * @param modelUrl url for the model file generated by scripts/convert.py
+         * script.
+         * @param weightManifestUrl url for the weight file generated by
+         * scripts/convert.py script.
+         * @param requestOption options for Request, which allows to send credentials
+         * and custom headers.
+         * @param onProgress Optional, progress callback function, fired periodically
+         * before the load is completed.
+         */
+        function FrozenModel(modelUrl, weightManifestUrl, requestOption, weightPrefix, onProgress) {
             this.modelUrl = modelUrl;
             this.weightManifestUrl = weightManifestUrl;
             this.requestOption = requestOption;
             this.weightPrefix = weightPrefix;
+            this.onProgress = onProgress;
             this.version = 'n/a';
         }
         Object.defineProperty(FrozenModel.prototype, "modelVersion", {
+            // Returns the version information for the tensorflow model GraphDef.
             get: function () {
                 return this.version;
             },
@@ -8546,13 +8932,15 @@
         });
         FrozenModel.prototype.findIOHandler = function () {
             var path = [this.modelUrl, this.weightManifestUrl];
-            if (this.requestOption) {
-                this.handler = tfc.io.browserHTTPRequest(path, this.requestOption, this.weightPrefix);
+            if (this.requestOption || this.weightPrefix) {
+                this.handler = tfc.io.browserHTTPRequest(path, this.requestOption, this.weightPrefix, null, this.onProgress);
             }
             else {
-                var handlers = tfc.io.getLoadHandlers(path);
+                var handlers = tfc.io.getLoadHandlers(path, this.onProgress);
                 if (handlers.length === 0) {
-                    handlers.push(tfc.io.browserHTTPRequest(path, this.requestOption));
+                    // For backward compatibility: if no load handler can be found,
+                    // assume it is a relative http path.
+                    handlers.push(tfc.io.browserHTTPRequest(path, this.requestOption, this.weightPrefix, null, this.onProgress));
                 }
                 else if (handlers.length > 1) {
                     throw new Error("Found more than one (" + handlers.length + ") load handlers for " +
@@ -8561,6 +8949,10 @@
                 this.handler = handlers[0];
             }
         };
+        /**
+         * Loads the model and weight files, construct the in memory weight map and
+         * compile the inference graph.
+         */
         FrozenModel.prototype.load = function () {
             return __awaiter(this, void 0, void 0, function () {
                 var artifacts, graph, weightMap;
@@ -8572,7 +8964,7 @@
                                 throw new Error('Cannot proceed with model loading because the IOHandler provided ' +
                                     'does not have the `load` method implemented.');
                             }
-                            return [4, this.handler.load()];
+                            return [4 /*yield*/, this.handler.load()];
                         case 1:
                             artifacts = _a.sent();
                             graph = compiled_api_1.GraphDef.decode(new Uint8Array(artifacts.modelTopology));
@@ -8581,11 +8973,47 @@
                             this.executor =
                                 new GraphExecutor(OperationMapper.Instance.transformGraph(graph));
                             this.executor.weightMap = this.convertTensorMapToTensorsMap(weightMap);
-                            return [2, true];
+                            return [2 /*return*/, true];
                     }
                 });
             });
         };
+        /**
+         * Execute the inference for the input tensors.
+         *
+         * @param input The input tensors, when there is single input for the model,
+         * inputs param should be a `tf.Tensor`. For models with mutliple inputs,
+         * inputs params should be in either `tf.Tensor`[] if the input order is
+         * fixed, or otherwise NamedTensorMap format.
+         *
+         * For model with multiple inputs, we recommend you use NamedTensorMap as the
+         * input type, if you use `tf.Tensor`[], the order of the array needs to
+         * follow the
+         * order of inputNodes array. @see {@link FrozenModel.inputNodes}
+         *
+         * You can also feed any intermediate nodes using the NamedTensorMap as the
+         * input type. For example, given the graph
+         *    InputNode => Intermediate => OutputNode,
+         * you can execute the subgraph Intermediate => OutputNode by calling
+         *    frozenModel.execute('IntermediateNode' : tf.tensor(...));
+         *
+         * This is useful for models that uses tf.dynamic_rnn, where the intermediate
+         * state needs to be fed manually.
+         *
+         * For batch inference execution, the tensors for each input need to be
+         * concatenated together. For example with mobilenet, the required input shape
+         * is [1, 244, 244, 3], which represents the [batch, height, width, channel].
+         * If we are provide a batched data of 100 images, the input tensor should be
+         * in the shape of [100, 244, 244, 3].
+         *
+         * @param config Prediction configuration for specifying the batch size and
+         * output node names. Currently the batch size option is ignored for frozen
+         * model.
+         *
+         * @returns Inference result tensors. The output would be single `tf.Tensor`
+         * if model has single output node, otherwise Tensor[] or NamedTensorMap[]
+         * will be returned for model with multiple outputs.
+         */
         FrozenModel.prototype.predict = function (inputs, config) {
             return this.execute_(inputs, true, this.outputNodes);
         };
@@ -8601,6 +9029,20 @@
                 return map;
             }, {});
         };
+        /**
+         * Executes infrerence for the model for given input tensors.
+         * @param inputs tensor, tensor array or tensor map of the inputs for the
+         * model, keyed by the input node names.
+         * @param outputs output node name from the Tensorflow model, if no
+         * outputs are specified, the default outputs of the model would be used.
+         * You can inspect intermediate nodes of the model by adding them to the
+         * outputs array.
+         *
+         * @returns A single tensor if provided with a single output or no outputs
+         * are provided and there is only one default output, otherwise return a
+         * tensor array. The order of the tensor array is the same as the outputs
+         * if provided, otherwise the order of outputNodes attribute of the model.
+         */
         FrozenModel.prototype.execute = function (inputs, outputs) {
             return this.execute_(inputs, false, outputs);
         };
@@ -8620,6 +9062,20 @@
                 outputs.map(function (node) { return result[node]; }) :
                 result[keys[0]];
         };
+        /**
+         * Executes inference for the model for given input tensors in async
+         * fashion, use this method when your model contains control flow ops.
+         * @param inputs tensor, tensor array or tensor map of the inputs for the
+         * model, keyed by the input node names.
+         * @param outputs output node name from the Tensorflow model, if no outputs
+         * are specified, the default outputs of the model would be used. You can
+         * inspect intermediate nodes of the model by adding them to the outputs
+         * array.
+         *
+         * @returns A Promise of single tensor if provided with a single output or
+         * no outputs are provided and there is only one default output, otherwise
+         * return a tensor map.
+         */
         FrozenModel.prototype.executeAsync = function (inputs, outputs) {
             return __awaiter(this, void 0, void 0, function () {
                 var result, keys;
@@ -8635,11 +9091,11 @@
                             if (inputs instanceof tfc.Tensor || Array.isArray(inputs)) {
                                 inputs = this.constructTensorMap(inputs);
                             }
-                            return [4, this.executor.executeAsync(this.convertTensorMapToTensorsMap(inputs), outputs)];
+                            return [4 /*yield*/, this.executor.executeAsync(this.convertTensorMapToTensorsMap(inputs), outputs)];
                         case 1:
                             result = _a.sent();
                             keys = Object.keys(result);
-                            return [2, Array.isArray(outputs) && outputs.length > 1 ?
+                            return [2 /*return*/, Array.isArray(outputs) && outputs.length > 1 ?
                                     outputs.map(function (node) { return result[node]; }) :
                                     result[keys[0]]];
                     }
@@ -8652,33 +9108,58 @@
                 return newMap;
             }, {});
         };
+        /**
+         * Releases the memory used by the weight tensors.
+         */
         FrozenModel.prototype.dispose = function () {
             this.executor.dispose();
         };
         return FrozenModel;
     }());
-    function loadFrozenModel(modelUrl, weightsManifestUrl, requestOption) {
+    function loadFrozenModel(modelUrl, weightsManifestUrl, requestOption, onProgress) {
         return __awaiter(this, void 0, void 0, function () {
             var model;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        model = new FrozenModel(modelUrl, weightsManifestUrl, requestOption);
-                        return [4, model.load()];
+                        model = new FrozenModel(modelUrl, weightsManifestUrl, requestOption, null, onProgress);
+                        return [4 /*yield*/, model.load()];
                     case 1:
                         _a.sent();
-                        return [2, model];
+                        return [2 /*return*/, model];
                 }
             });
         });
     }
-    function loadTfHubModule(tfhubModuleUrl, requestOption) {
+    /**
+     * Load the frozen model hosted by TF-Hub.
+     *
+     * Example of loading the MobileNetV2 model and making a prediction with a zero
+     * input.
+     *
+     * ```js
+     * const TFHUB_MOBILENET =
+     *   'https://tfhub.dev/google/imagenet/mobilenet_v2_140_224/classification/2';
+     * const model = await tf.loadTfHubModule(TFHUB_MOBILENET);
+     * const zeros = tf.zeros([1, 224, 224, 3]);
+     * model.predict(zeros).print();
+     * ```
+     *
+     * @param tfhubModelUrl url for the model hosted by TF-Hub, i.e.
+     * 'https://tfhub.dev/google/imagenet/mobilenet_v2_140_224/classification/2'.
+     * @param requestOption options for Request, which allows to send credentials
+     * and custom headers.
+     * @param onProgress Optional, progress callback function, fired periodically
+     * before the load is completed.
+     */
+    /** @doc {heading: 'Models', subheading: 'Loading'} */
+    function loadTfHubModule(tfhubModuleUrl, requestOption, onProgress) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 if (!tfhubModuleUrl.endsWith('/')) {
                     tfhubModuleUrl = tfhubModuleUrl + '/';
                 }
-                return [2, loadFrozenModel("" + tfhubModuleUrl + DEFAULT_MODEL_NAME + TFHUB_SEARCH_PARAM, "" + tfhubModuleUrl + DEFAULT_MANIFEST_NAME + TFHUB_SEARCH_PARAM, requestOption)];
+                return [2 /*return*/, loadFrozenModel("" + tfhubModuleUrl + DEFAULT_MODEL_NAME + TFHUB_SEARCH_PARAM, "" + tfhubModuleUrl + DEFAULT_MANIFEST_NAME + TFHUB_SEARCH_PARAM, requestOption, onProgress)];
             });
         });
     }
@@ -8905,8 +9386,10 @@
     });
     var base64_1$1 = base64$1.Base64;
 
+    /** Namespace tensorflow_json. */
     var tensorflow_json;
     (function (tensorflow_json) {
+        /** DataType enum. */
         var DataType;
         (function (DataType) {
             DataType[DataType["DT_INVALID"] = 0] = "DT_INVALID";
@@ -8941,6 +9424,7 @@
         })(DataType = tensorflow_json.DataType || (tensorflow_json.DataType = {}));
         var SaverDef;
         (function (SaverDef) {
+            /** CheckpointFormatVersion enum. */
             var CheckpointFormatVersion;
             (function (CheckpointFormatVersion) {
                 CheckpointFormatVersion[CheckpointFormatVersion["LEGACY"] = 0] = "LEGACY";
@@ -8952,7 +9436,8 @@
 
     var CONTROL_FLOW_OPS$1 = ['Switch', 'Merge', 'Enter', 'Exit', 'NextIteration'];
     var DYNAMIC_SHAPE_OPS$1 = ['NonMaxSuppressionV2', 'NonMaxSuppressionV3', 'Where'];
-    var OperationMapper$1 = (function () {
+    var OperationMapper$1 = /** @class */ (function () {
+        // Loads the op mapping from the JSON file.
         function OperationMapper() {
             var ops = [
                 arithmetic, basicMath, control, convolution, creation, dynamic,
@@ -8966,6 +9451,7 @@
             }, {});
         }
         Object.defineProperty(OperationMapper, "Instance", {
+            // Singleton instance for the mapper
             get: function () {
                 return this._instance || (this._instance = new this());
             },
@@ -8978,6 +9464,8 @@
         OperationMapper.prototype.isDynamicShape = function (node) {
             return DYNAMIC_SHAPE_OPS$1.some(function (op) { return op === node.op; });
         };
+        // Converts the model from Tensorflow GraphDef to local representation for
+        // Tensorflow.js API
         OperationMapper.prototype.transformGraph = function (graph) {
             var _this = this;
             var tfNodes = graph.node;
@@ -9032,56 +9520,69 @@
             }
             var newNode = {
                 name: node.name,
-                op: mapper.dlOpName,
+                op: node.op,
                 category: mapper.category,
                 inputNames: (node.input ||
                     []).map(function (input) { return input.startsWith('^') ? input.substr(1) : input; }),
                 inputs: [],
                 children: [],
-                params: {}
+                inputParams: {},
+                attrParams: {}
             };
-            if (!!mapper.params) {
-                newNode.params = mapper.params.reduce(function (map, param) {
-                    var inputIndex = param.tfInputIndex;
-                    var inputParamLength = param.tfInputParamLength;
-                    var type = param.type;
-                    var value = undefined;
-                    if (inputIndex === undefined) {
+            if (node.attr == null) {
+                node.attr = {};
+            }
+            if (mapper.inputs != null) {
+                newNode.inputParams =
+                    mapper.inputs.reduce(function (map, param) {
+                        map[param.name] = {
+                            type: param.type,
+                            inputIndexStart: param.start,
+                            inputIndexEnd: param.end
+                        };
+                        return map;
+                    }, {});
+            }
+            if (mapper.attrs != null) {
+                newNode.attrParams =
+                    mapper.attrs.reduce(function (map, param) {
+                        var type = param.type;
+                        var value = undefined;
                         switch (param.type) {
                             case 'string':
-                                value = _this.getStringParam(node.attr, param.tfParamName, param.defaultValue);
-                                if (value === undefined && !!param.tfParamNameDeprecated) {
-                                    value = _this.getStringParam(node.attr, param.tfParamNameDeprecated, param.defaultValue);
+                                value = _this.getStringParam(node.attr, param.tfName, param.defaultValue);
+                                if (value === undefined && !!param.tfDeprecatedName) {
+                                    value = _this.getStringParam(node.attr, param.tfDeprecatedName, param.defaultValue);
                                 }
                                 break;
                             case 'number':
-                                value = _this.getNumberParam(node.attr, param.tfParamName, (param.defaultValue || 0));
-                                if (value === undefined && !!param.tfParamNameDeprecated) {
-                                    value = _this.getNumberParam(node.attr, param.tfParamNameDeprecated, param.defaultValue);
+                                value = _this.getNumberParam(node.attr, param.tfName, (param.defaultValue || 0));
+                                if (value === undefined && !!param.tfDeprecatedName) {
+                                    value = _this.getNumberParam(node.attr, param.tfDeprecatedName, param.defaultValue);
                                 }
                                 break;
                             case 'number[]':
-                                value = _this.getNumericArrayParam(node.attr, param.tfParamName, param.defaultValue);
-                                if (value === undefined && !!param.tfParamNameDeprecated) {
-                                    value = _this.getNumericArrayParam(node.attr, param.tfParamNameDeprecated, param.defaultValue);
+                                value = _this.getNumericArrayParam(node.attr, param.tfName, param.defaultValue);
+                                if (value === undefined && !!param.tfDeprecatedName) {
+                                    value = _this.getNumericArrayParam(node.attr, param.tfDeprecatedName, param.defaultValue);
                                 }
                                 break;
                             case 'bool':
-                                value = _this.getBoolParam(node.attr, param.tfParamName, param.defaultValue);
-                                if (value === undefined && !!param.tfParamNameDeprecated) {
-                                    value = _this.getBoolParam(node.attr, param.tfParamNameDeprecated, param.defaultValue);
+                                value = _this.getBoolParam(node.attr, param.tfName, param.defaultValue);
+                                if (value === undefined && !!param.tfDeprecatedName) {
+                                    value = _this.getBoolParam(node.attr, param.tfDeprecatedName, param.defaultValue);
                                 }
                                 break;
                             case 'shape':
-                                value = _this.getTensorShapeParam(node.attr, param.tfParamName, param.defaultValue);
-                                if (value === undefined && !!param.tfParamNameDeprecated) {
-                                    value = _this.getTensorShapeParam(node.attr, param.tfParamNameDeprecated, param.defaultValue);
+                                value = _this.getTensorShapeParam(node.attr, param.tfName, param.defaultValue);
+                                if (value === undefined && !!param.tfDeprecatedName) {
+                                    value = _this.getTensorShapeParam(node.attr, param.tfDeprecatedName, param.defaultValue);
                                 }
                                 break;
                             case 'dtype':
-                                value = _this.getDtypeParam(node.attr, param.tfParamName, param.defaultValue);
-                                if (value === undefined && !!param.tfParamNameDeprecated) {
-                                    value = _this.getDtypeParam(node.attr, param.tfParamNameDeprecated, param.defaultValue);
+                                value = _this.getDtypeParam(node.attr, param.tfName, param.defaultValue);
+                                if (value === undefined && !!param.tfDeprecatedName) {
+                                    value = _this.getDtypeParam(node.attr, param.tfDeprecatedName, param.defaultValue);
                                 }
                                 break;
                             case 'tensor':
@@ -9090,10 +9591,9 @@
                             default:
                                 throw new Error("Unsupported param type: " + param.type + " for op: " + node.op);
                         }
-                    }
-                    map[param.dlParamName] = { value: value, inputIndex: inputIndex, type: type, inputParamLength: inputParamLength };
-                    return map;
-                }, {});
+                        map[param.name] = { value: value, type: type };
+                        return map;
+                    }, {});
             }
             return newNode;
         };
@@ -9122,6 +9622,7 @@
         OperationMapper.prototype.getDtypeParam = function (attrs, name, def) {
             var param = attrs[name];
             if (param && param.type) {
+                // tslint:disable-next-line:no-any
                 var type = param.type;
                 if (typeof (param.type) === 'string') {
                     type = tensorflow_json.DataType[param.type];
@@ -9145,7 +9646,7 @@
                 if (param.shape.unknownRank) {
                     return undefined;
                 }
-                if (param.shape.dim) {
+                if (param.shape.dim != null) {
                     return param.shape.dim.map(function (dim) { return (typeof dim.size === 'number') ?
                         dim.size :
                         parseInt(dim.size, 10); });
@@ -9167,14 +9668,46 @@
         return OperationMapper;
     }());
 
-    var FrozenModel$1 = (function () {
-        function FrozenModel(modelUrl, requestOption, weightPrefix) {
+    /**
+     * @license
+     * Copyright 2018 Google LLC. All Rights Reserved.
+     * Licensed under the Apache License, Version 2.0 (the "License");
+     * you may not use this file except in compliance with the License.
+     * You may obtain a copy of the License at
+     *
+     * http://www.apache.org/licenses/LICENSE-2.0
+     *
+     * Unless required by applicable law or agreed to in writing, software
+     * distributed under the License is distributed on an "AS IS" BASIS,
+     * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     * See the License for the specific language governing permissions and
+     * limitations under the License.
+     * =============================================================================
+     */
+    /**
+     * A `tf.FrozenModel` is a directed, acyclic graph of built from
+     * SavedModel GraphDef and allows inference exeuction.
+     */
+    var FrozenModel$1 = /** @class */ (function () {
+        /**
+         * @param modelUrl url for the model file generated by scripts/convert.py
+         * script.
+         * @param weightManifestUrl url for the weight file generated by
+         * scripts/convert.py script.
+         * @param requestOption options for Request, which allows to send credentials
+         * and custom headers.
+         * @param onProgress Optional, progress callback function, fired periodically
+         * before the load is completed.
+         */
+        function FrozenModel(modelUrl, requestOption, weightPrefix, onProgress) {
             this.modelUrl = modelUrl;
             this.requestOption = requestOption;
             this.weightPrefix = weightPrefix;
+            this.onProgress = onProgress;
             this.version = 'n/a';
         }
         Object.defineProperty(FrozenModel.prototype, "modelVersion", {
+            // Returns the version information for the tensorflow model GraphDef.
             get: function () {
                 return this.version;
             },
@@ -9218,13 +9751,15 @@
         });
         FrozenModel.prototype.findIOHandler = function () {
             var path = this.modelUrl;
-            if (this.requestOption) {
-                this.handler = tfc.io.browserHTTPRequest(path, this.requestOption, this.weightPrefix);
+            if (this.requestOption || this.weightPrefix) {
+                this.handler = tfc.io.browserHTTPRequest(path, this.requestOption, this.weightPrefix, null, this.onProgress);
             }
             else {
-                var handlers = tfc.io.getLoadHandlers(path);
+                var handlers = tfc.io.getLoadHandlers(path, this.onProgress);
                 if (handlers.length === 0) {
-                    handlers.push(tfc.io.browserHTTPRequest(path, this.requestOption));
+                    // For backward compatibility: if no load handler can be found,
+                    // assume it is a relative http path.
+                    handlers.push(tfc.io.browserHTTPRequest(path, this.requestOption, this.weightPrefix, null, this.onProgress));
                 }
                 else if (handlers.length > 1) {
                     throw new Error("Found more than one (" + handlers.length + ") load handlers for " +
@@ -9233,6 +9768,10 @@
                 this.handler = handlers[0];
             }
         };
+        /**
+         * Loads the model and weight files, construct the in memory weight map and
+         * compile the inference graph.
+         */
         FrozenModel.prototype.load = function () {
             return __awaiter(this, void 0, void 0, function () {
                 var artifacts, graph, weightMap;
@@ -9244,7 +9783,7 @@
                                 throw new Error('Cannot proceed with model loading because the IOHandler provided ' +
                                     'does not have the `load` method implemented.');
                             }
-                            return [4, this.handler.load()];
+                            return [4 /*yield*/, this.handler.load()];
                         case 1:
                             artifacts = _a.sent();
                             graph = artifacts.modelTopology;
@@ -9253,11 +9792,47 @@
                             this.executor =
                                 new GraphExecutor(OperationMapper$1.Instance.transformGraph(graph));
                             this.executor.weightMap = this.convertTensorMapToTensorsMap(weightMap);
-                            return [2, true];
+                            return [2 /*return*/, true];
                     }
                 });
             });
         };
+        /**
+         * Execute the inference for the input tensors.
+         *
+         * @param input The input tensors, when there is single input for the model,
+         * inputs param should be a `tf.Tensor`. For models with mutliple inputs,
+         * inputs params should be in either `tf.Tensor`[] if the input order is
+         * fixed, or otherwise NamedTensorMap format.
+         *
+         * For model with multiple inputs, we recommend you use NamedTensorMap as the
+         * input type, if you use `tf.Tensor`[], the order of the array needs to
+         * follow the
+         * order of inputNodes array. @see {@link FrozenModel.inputNodes}
+         *
+         * You can also feed any intermediate nodes using the NamedTensorMap as the
+         * input type. For example, given the graph
+         *    InputNode => Intermediate => OutputNode,
+         * you can execute the subgraph Intermediate => OutputNode by calling
+         *    frozenModel.execute('IntermediateNode' : tf.tensor(...));
+         *
+         * This is useful for models that uses tf.dynamic_rnn, where the intermediate
+         * state needs to be fed manually.
+         *
+         * For batch inference execution, the tensors for each input need to be
+         * concatenated together. For example with mobilenet, the required input shape
+         * is [1, 244, 244, 3], which represents the [batch, height, width, channel].
+         * If we are provide a batched data of 100 images, the input tensor should be
+         * in the shape of [100, 244, 244, 3].
+         *
+         * @param config Prediction configuration for specifying the batch size and
+         * output node names. Currently the batch size option is ignored for frozen
+         * model.
+         *
+         * @returns Inference result tensors. The output would be single `tf.Tensor`
+         * if model has single output node, otherwise Tensor[] or NamedTensorMap[]
+         * will be returned for model with multiple outputs.
+         */
         FrozenModel.prototype.predict = function (inputs, config) {
             return this.execute_(inputs, true, this.outputNodes);
         };
@@ -9273,6 +9848,20 @@
                 return map;
             }, {});
         };
+        /**
+         * Executes inference for the model for given input tensors.
+         * @param inputs tensor, tensor array or tensor map of the inputs for the
+         * model, keyed by the input node names.
+         * @param outputs output node name from the Tensorflow model, if no
+         * outputs are specified, the default outputs of the model would be used.
+         * You can inspect intermediate nodes of the model by adding them to the
+         * outputs array.
+         *
+         * @returns A single tensor if provided with a single output or no outputs
+         * are provided and there is only one default output, otherwise return a
+         * tensor array. The order of the tensor array is the same as the outputs
+         * if provided, otherwise the order of outputNodes attribute of the model.
+         */
         FrozenModel.prototype.execute = function (inputs, outputs) {
             return this.execute_(inputs, false, outputs);
         };
@@ -9292,6 +9881,20 @@
                 outputs.map(function (node) { return result[node]; }) :
                 result[keys[0]];
         };
+        /**
+         * Executes inference for the model for given input tensors in async
+         * fashion, use this method when your model contains control flow ops.
+         * @param inputs tensor, tensor array or tensor map of the inputs for the
+         * model, keyed by the input node names.
+         * @param outputs output node name from the Tensorflow model, if no outputs
+         * are specified, the default outputs of the model would be used. You can
+         * inspect intermediate nodes of the model by adding them to the outputs
+         * array.
+         *
+         * @returns A Promise of single tensor if provided with a single output or
+         * no outputs are provided and there is only one default output, otherwise
+         * return a tensor map.
+         */
         FrozenModel.prototype.executeAsync = function (inputs, outputs) {
             return __awaiter(this, void 0, void 0, function () {
                 var result, keys;
@@ -9307,11 +9910,11 @@
                             if (inputs instanceof tfc.Tensor || Array.isArray(inputs)) {
                                 inputs = this.constructTensorMap(inputs);
                             }
-                            return [4, this.executor.executeAsync(this.convertTensorMapToTensorsMap(inputs), outputs)];
+                            return [4 /*yield*/, this.executor.executeAsync(this.convertTensorMapToTensorsMap(inputs), outputs)];
                         case 1:
                             result = _a.sent();
                             keys = Object.keys(result);
-                            return [2, Array.isArray(outputs) && outputs.length > 1 ?
+                            return [2 /*return*/, Array.isArray(outputs) && outputs.length > 1 ?
                                     outputs.map(function (node) { return result[node]; }) :
                                     result[keys[0]]];
                     }
@@ -9324,39 +9927,161 @@
                 return newMap;
             }, {});
         };
+        /**
+         * Releases the memory used by the weight tensors.
+         */
         FrozenModel.prototype.dispose = function () {
             this.executor.dispose();
         };
         return FrozenModel;
     }());
-    function loadFrozenModel$1(modelUrl, requestOption) {
+    /**
+     * Load the frozen model through url.
+     *
+     * Example of loading the MobileNetV2 model and making a prediction with a zero
+     * input.
+     *
+     * ```js
+     * const GOOGLE_CLOUD_STORAGE_DIR =
+     *     'https://storage.googleapis.com/tfjs-models/savedmodel/';
+     * const MODEL_URL = 'mobilenet_v2_1.0_224/model.json';
+     * const model = await tf.loadFrozenModel(GOOGLE_CLOUD_STORAGE_DIR + MODEL_URL);
+     * const zeros = tf.zeros([1, 224, 224, 3]);
+     * model.predict(zeros).print();
+     * ```
+     *
+     * @param modelUrl url for the model file generated by scripts/convert.py
+     * script.
+     * @param weightManifestUrl url for the weight file generated by
+     * scripts/convert.py script.
+     * @param requestOption options for Request, which allows to send credentials
+     * and custom headers.
+     * @param onProgress Optional, progress callback function, fired periodically
+     * before the load is completed.
+     */
+    function loadFrozenModel$1(modelUrl, requestOption, onProgress) {
         return __awaiter(this, void 0, void 0, function () {
             var model;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        model = new FrozenModel$1(modelUrl, requestOption);
-                        return [4, model.load()];
+                        model = new FrozenModel$1(modelUrl, requestOption, null, onProgress);
+                        return [4 /*yield*/, model.load()];
                     case 1:
                         _a.sent();
-                        return [2, model];
+                        return [2 /*return*/, model];
                 }
             });
         });
     }
 
-    var version = '0.8.0';
+    /** @license See the LICENSE file. */
+    // This code is auto-generated, do not modify this file!
+    var version = '1.0.0-alpha3';
 
-    function loadFrozenModel$2(modelUrl, weightsManifestUrl, requestOption) {
+    /**
+     * Deprecated. Use `tf.loadGraphModel`.
+     *
+     * Load the frozen model through url.
+     *
+     * Example of loading the MobileNetV2 model and making a prediction with a zero
+     * input.
+     *
+     * ```js
+     * const GOOGLE_CLOUD_STORAGE_DIR =
+     *     'https://storage.googleapis.com/tfjs-models/savedmodel/';
+     * const MODEL_URL = 'mobilenet_v2_1.0_224/tensorflowjs_model.pb';
+     * const WEIGHTS_URL =
+     *     'mobilenet_v2_1.0_224/weights_manifest.json';
+     * const model = await tf.loadFrozenModel(GOOGLE_CLOUD_STORAGE_DIR + MODEL_URL,
+     *      GOOGLE_CLOUD_STORAGE_DIR + WEIGHTS_URL);
+     * const zeros = tf.zeros([1, 224, 224, 3]);
+     * model.predict(zeros).print();
+     * ```
+     *
+     * @param modelUrl url for the model file generated by scripts/convert.py
+     *    script.
+     * @param weightManifestUrl url for the weight file generated by
+     *    scripts/convert.py script.
+     * @param requestOption options for Request, which allows to send credentials
+     *    and custom headers.
+     * @param onProgress Optional, progress callback function, fired periodically
+     *    before the load is completed.
+     */
+    /** @doc {heading: 'Models', subheading: 'Loading'} */
+    function loadFrozenModel$2(modelUrl, weightsManifestUrl, requestOption, onProgress) {
         if (modelUrl && modelUrl.endsWith('.json')) {
-            return loadFrozenModel$1(modelUrl, requestOption);
+            return loadFrozenModel$1(modelUrl, requestOption, onProgress);
         }
-        return loadFrozenModel(modelUrl, weightsManifestUrl, requestOption);
+        // if users are using the new loadGraphModel API, the weightManifestUrl will
+        // be omitted. We will build the url using the model URL path and default
+        // manifest file name.
+        if (modelUrl != null && weightsManifestUrl == null) {
+            weightsManifestUrl = getWeightsManifestUrl(modelUrl);
+        }
+        return loadFrozenModel(modelUrl, weightsManifestUrl, requestOption, onProgress);
+    }
+    function getWeightsManifestUrl(modelUrl) {
+        var weightsManifestUrl;
+        if (modelUrl != null) {
+            var path = modelUrl.substr(0, modelUrl.lastIndexOf('/'));
+            weightsManifestUrl = path + '/' + DEFAULT_MANIFEST_NAME;
+        }
+        return weightsManifestUrl;
+    }
+    /**
+     * Load a graph model given a URL to the model definition.
+     *
+     * Example of loading MobileNetV2 from a URL and making a prediction with a
+     * zeros input:
+     *
+     * ```js
+     * const modelUrl =
+     *    'https://storage.googleapis.com/tfjs-models/savedmodel/mobilenet_v2_1.0_224/tensorflowjs_model.pb';
+     * const model = await tf.loadGraphModel(modelUrl);
+     * const zeros = tf.zeros([1, 224, 224, 3]);
+     * model.predict(zeros).print();
+     * ```
+     *
+     * Example of loading MobileNetV2 from a TF Hub URL and making a prediction with
+     * a zeros input:
+     *
+     * ```js
+     * const modelUrl =
+     *    'https://tfhub.dev/google/imagenet/mobilenet_v2_140_224/classification/2';
+     * const model = await tf.loadGraphModel(modelUrl, {fromTFHub: true});
+     * const zeros = tf.zeros([1, 224, 224, 3]);
+     * model.predict(zeros).print();
+     * ```
+     * @param modelUrl url for the model file generated by scripts/convert.py
+     *    script or a TF Hub url.
+     * @param options options for the Request, which allows to send credentials
+     *    and custom headers.
+     */
+    /** @doc {heading: 'Models', subheading: 'Loading'} */
+    function loadGraphModel(modelUrl, options) {
+        if (options === void 0) { options = {}; }
+        if (options.fromTFHub) {
+            return loadTfHubModule(modelUrl, options.requestInit, options.onProgress);
+        }
+        var weightsManifestUrl = undefined;
+        if (modelUrl && modelUrl.endsWith('.json')) {
+            return loadFrozenModel$1(modelUrl, options.requestInit, options.onProgress);
+        }
+        // if users are using the new loadGraphModel API, the weightManifestUrl will
+        // be omitted. We will build the url using the model URL path and default
+        // manifest file name.
+        if (modelUrl != null && weightsManifestUrl == null) {
+            weightsManifestUrl = getWeightsManifestUrl(modelUrl);
+        }
+        return loadFrozenModel(modelUrl, weightsManifestUrl, options.requestInit, options.onProgress);
     }
 
     exports.loadFrozenModel = loadFrozenModel$2;
+    exports.loadGraphModel = loadGraphModel;
     exports.FrozenModel = FrozenModel;
     exports.loadTfHubModule = loadTfHubModule;
+    exports.GraphModel = FrozenModel;
     exports.FrozenModelJSON = FrozenModel$1;
     exports.version_converter = version;
 

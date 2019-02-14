@@ -35,13 +35,11 @@
     './';
   const MODEL_URL =
     GOOGLE_CLOUD_STORAGE_DIR + 'ssdlite_mobilenet_v2_coco_2018_05_09/web_model/tensorflowjs_model.pb';
-  const WEIGHTS_URL =
-    GOOGLE_CLOUD_STORAGE_DIR + 'ssdlite_mobilenet_v2_coco_2018_05_09/web_model/weights_manifest.json';
 
   let modelPromise;
 
   window.onload = () => modelPromise =
-    tf.loadFrozenModel(MODEL_URL, WEIGHTS_URL); //, undefined, [new tf.DeviceAllocationOptimizer('webgl', true)]);
+    tf.loadGraphModel(MODEL_URL); //, undefined, [new tf.DeviceAllocationOptimizer('webgl', true)]);
 
   const button = document.getElementById('toggle');
   button.onclick = () => {

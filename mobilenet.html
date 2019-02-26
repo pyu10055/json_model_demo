@@ -1034,10 +1034,7 @@
     1000: 'toilet tissue, toilet paper, bathroom tissue'
   };
   const BASE_DIR = 'json_mobilenet/';
-  const BASE_DIR_PB = 'pb_mobilenet/';
   const MODEL_URL = BASE_DIR + 'model.json';
-  const MODEL_URL_PB = BASE_DIR_PB + 'tensorflowjs_model.pb';
-  const WEIGHTS_URL_PB = BASE_DIR_PB + 'weights_manifest.json';
   const cat = document.getElementById("cat");
   const size = 224;
   const PREPROCESS_DIVISOR = tf.scalar(255 / 2);
@@ -1073,29 +1070,6 @@
       PREPROCESS_DIVISOR);
     const reshapedInput =
       normalized.reshape([1, ...normalized.shape]);
-
-    console.log('pb model ...');
-    console.time('loading');
-    const mobileNetPb = await tf.loadGraphModel(MODEL_URL_PB);
-    console.timeEnd('loading');
-
-    const profilePb = await tf.profile(() => {
-
-      console.time('First prediction');
-      let result = mobileNetPb.predict(reshapedInput);
-      console.log(getTopKClasses(result, 5));
-      //let resultData = result.dataSync();
-      console.timeEnd('First prediction');
-
-      for (let i = 0; i < 10; i++) {
-        console.time('prediction' + i);
-        result = mobileNetPb.predict(reshapedInput);
-        result.dataSync();
-        console.timeEnd('prediction' + i);
-
-      }
-    });
-    console.log(profilePb);
 
     console.log('json model ...');
     console.time('loading');

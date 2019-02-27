@@ -21,7 +21,7 @@ const flatten = (arr) => arr.reduce((acc, curr) => acc.concat(curr), []);
 
 const loadModel =
     async () => {
-  return await tf.loadGraphModel(`${BASE_PATH}tensorflowjs_model.pb`);
+  return await tf.loadGraphModel(`${BASE_PATH}model.json`);
 }
 
 const loadVocabulary =
